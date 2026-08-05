@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+desktop_app/build/
+desktop_app/dist/
+desktop_app/*.spec
+desktop_app/SupplyChainScorer.exe

@@ -1,0 +1,6 @@
+oracledb
+pandas
+xgboost
+requests
+python-dotenv
+scikit-learn

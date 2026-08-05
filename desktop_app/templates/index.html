@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Risk Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --void: #06070a;
+            --panel: #0d0f15;
+            --panel-hover: #12151d;
+            --hairline: #1e222c;
+            --hairline-soft: rgba(255,255,255,0.05);
+            --text-1: #eef1f6;
+            --text-2: #8a93a6;
+            --text-3: #4a5163;
+            --accent: #7c8cff;
+            --accent-dim: rgba(124,140,255,0.10);
+            --risk-high: #ff5470;
+            --risk-high-dim: rgba(255,84,112,0.10);
+            --risk-med: #ffb648;
+            --risk-med-dim: rgba(255,182,72,0.10);
+            --risk-low: #2dd9a8;
+            --risk-low-dim: rgba(45,217,168,0.10);
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--void);
+            color: var(--text-1);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            background-image:
+                radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
+            background-size: 26px 26px;
+            position: relative;
+            min-height: 100vh;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: -220px; left: 50%;
+            transform: translateX(-50%);
+            width: 900px; height: 420px;
+            background: radial-gradient(ellipse at center, var(--accent-dim), transparent 72%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        :focus-visible { outline: 1.5px solid var(--accent); outline-offset: 2px; }
+
+        /* ── Navbar ── */
+        .navbar {
+            background: rgba(6,7,10,0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--hairline);
+            padding: 0 48px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar-brand {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            color: #fafafa;
+            letter-spacing: -0.2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mark {
+            width: 12px; height: 12px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .mark::before, .mark::after {
+            content: "";
+            position: absolute;
+            width: 5px; height: 5px;
+            border: 1.4px solid var(--accent);
+        }
+        .mark::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+        .mark::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+        .mark span {
+            position: absolute; top: 50%; left: 50%;
+            width: 3px; height: 3px;
+            background: var(--accent);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 6px 1px var(--accent);
+            animation: pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+        .navbar-meta {
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            color: var(--text-3);
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 40px 24px 56px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .page-header { margin-bottom: 36px; }
+        .page-header h1 {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            color: #fafafa;
+            letter-spacing: -0.5px;
+        }
+        .page-header p {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-3);
+            margin-top: 6px;
+            letter-spacing: 0.2px;
+        }
+
+        /* ── Search ── */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 36px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--panel);
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            color: var(--text-1);
+            font-size: 13px;
+            font-family: var(--font-body);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-bar input::placeholder { color: var(--text-3); }
+        .search-bar input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+        .btn {
+            padding: 12px 24px;
+            background: var(--accent);
+            color: #06070a;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-body);
+            cursor: pointer;
+            transition: filter 0.15s, transform 0.15s;
+            white-space: nowrap;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .btn:active { transform: scale(0.98); }
+
+        /* ── Stats ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .stat {
+            background: var(--panel);
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            padding: 20px 22px;
+            position: relative;
+            text-decoration: none;
+            display: block;
+            transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
+        }
+        a.stat:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .stat::before, .stat::after {
+            content: "";
+            position: absolute;
+            width: 9px; height: 9px;
+            opacity: 0.55;
+        }
+        .stat::before { top: -1px; left: -1px; border-top: 1.5px solid var(--bracket, var(--text-3)); border-left: 1.5px solid var(--bracket, var(--text-3)); }
+        .stat::after { bottom: -1px; right: -1px; border-bottom: 1.5px solid var(--bracket, var(--text-3)); border-right: 1.5px solid var(--bracket, var(--text-3)); }
+        .stat.a-total { --bracket: var(--accent); }
+        .stat.a-high { --bracket: var(--risk-high); }
+        .stat.a-med { --bracket: var(--risk-med); }
+        .stat.a-low { --bracket: var(--risk-low); }
+        .stat-label {
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .stat-val {
+            font-family: var(--font-display);
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+        .c-red { color: var(--risk-high); }
+        .c-amber { color: var(--risk-med); }
+        .c-green { color: var(--risk-low); }
+        .c-white { color: #fafafa; }
+
+        /* ── Section ── */
+        .section-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Table ── */
+        .table-container {
+            background: var(--panel);
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 40px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 12px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--hairline);
+        }
+        tbody td {
+            font-size: 13px;
+            padding: 13px 20px;
+            color: var(--text-2);
+            border-bottom: 1px solid var(--hairline-soft);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.12s; }
+        tbody tr:hover { background: rgba(124,140,255,0.035); }
+
+        .mono {
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+            color: var(--text-3);
+        }
+        .score-cell { display: flex; align-items: center; gap: 10px; }
+        .score-col {
+            font-family: var(--font-mono);
+            color: #fafafa;
+            font-weight: 600;
+            font-size: 13px;
+            min-width: 30px;
+        }
+        .score-bar {
+            width: 56px; height: 3px;
+            background: var(--hairline);
+            border-radius: 2px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .score-bar > span {
+            display: block;
+            height: 100%;
+            border-radius: 2px;
+            background: var(--bar-color, var(--accent));
+        }
+
+        /* ── Badges ── */
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .badge-high { background: var(--risk-high-dim); color: var(--risk-high); }
+        .badge-medium { background: var(--risk-med-dim); color: var(--risk-med); }
+        .badge-low { background: var(--risk-low-dim); color: var(--risk-low); }
+
+        .trend { font-size: 13px; font-weight: 500; }
+        .t-up { color: var(--risk-high); }
+        .t-down { color: var(--risk-low); }
+        .t-stable { color: var(--text-3); }
+        .t-new { color: var(--accent); }
+
+        .link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+        .link:hover { color: #a5b1ff; }
+
+        /* ── Alerts ── */
+        .alert-dot {
+            width: 6px; height: 6px;
+            background: var(--risk-high);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 6px 1px var(--risk-high-dim);
+            animation: blink 2.5s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.25; }
+        }
+
+        .empty { padding: 24px 20px; font-size: 13px; color: var(--text-3); text-align: center; font-family: var(--font-mono); }
+
+        .footer {
+            text-align: center;
+            padding: 32px;
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            color: var(--text-3);
+            opacity: 0.5;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 768px) {
+            .navbar { padding: 0 20px; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .search-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand"><span class="mark"><span></span></span>Vendor Risk Intelligence</div>
+    <span class="navbar-meta">Supply Chain Analytics</span>
+</nav>
+
+<div class="container">
+
+    <div class="page-header">
+        <h1>Risk Overview</h1>
+        <p>REAL-TIME VENDOR MONITORING · XGBOOST ML · NLP DEFECT ANALYSIS</p>
+    </div>
+
+    <form class="search-bar" action="{{ url_for('search') }}" method="POST">
+        <input list="sellers-list" type="text" name="seller_id" placeholder="Enter Seller ID for live ML analysis…" required>
+        <datalist id="sellers-list">
+            {% for s in all_sellers %}
+            <option value="{{ s[0] }}">{{ s[1] }}</option>
+            {% endfor %}
+        </datalist>
+        <button type="submit" class="btn">Analyze →</button>
+    </form>
+
+    <div class="stats">
+        <div class="stat a-total">
+            <div class="stat-label">Total Sellers</div>
+            <div class="stat-val c-white">{{ total_sellers }}</div>
+        </div>
+        <a href="{{ url_for('category_list', risk_level='high') }}" class="stat a-high">
+            <div class="stat-label">High Risk</div>
+            <div class="stat-val c-red">{{ category_counts.get('High', 0) }}</div>
+        </a>
+        <a href="{{ url_for('category_list', risk_level='medium') }}" class="stat a-med">
+            <div class="stat-label">Medium Risk</div>
+            <div class="stat-val c-amber">{{ category_counts.get('Medium', 0) }}</div>
+        </a>
+        <a href="{{ url_for('category_list', risk_level='low') }}" class="stat a-low">
+            <div class="stat-label">Low Risk</div>
+            <div class="stat-val c-green">{{ category_counts.get('Low', 0) }}</div>
+        </a>
+    </div>
+
+    <div class="section-label">Top 10 — Highest Risk</div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Seller</th>
+                    <th>Score</th>
+                    <th>Risk</th>
+                    <th>Trend</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in top_risky %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 500; color: #fafafa;">{{ s[1] }}</div>
+                        <div class="mono" style="font-size: 10px; margin-top: 2px;">{{ s[0][:16] }}…</div>
+                    </td>
+                    <td>
+                        <div class="score-cell">
+                            <span class="score-col">{{ "%.1f"|format(s[2]) }}</span>
+                            <span class="score-bar" style="--bar-color: {% if s[3] == 'High' %}var(--risk-high){% elif s[3] == 'Medium' %}var(--risk-med){% else %}var(--risk-low){% endif %};"><span style="width: {{ s[2] }}%;"></span></span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if s[3] == 'High' %}<span class="badge badge-high">HIGH</span>
+                        {% elif s[3] == 'Medium' %}<span class="badge badge-medium">MED</span>
+                        {% else %}<span class="badge badge-low">LOW</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if s[4] == 'UP' %}<span class="trend t-up">▲</span>
+                        {% elif s[4] == 'DOWN' %}<span class="trend t-down">▼</span>
+                        {% elif s[4] == 'NEW' %}<span class="trend t-new">★</span>
+                        {% else %}<span class="trend t-stable">—</span>{% endif %}
+                    </td>
+                    <td><a href="{{ url_for('seller', seller_id=s[0]) }}" class="link">View →</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-label"><span class="alert-dot"></span>Recent Alerts</div>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Date</th><th>Seller</th><th>Message</th></tr></thead>
+            <tbody>
+                {% for a in recent_alerts %}
+                <tr>
+                    <td class="mono" style="color:var(--text-3);">{{ a[3].strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <div style="font-weight: 500;"><a href="{{ url_for('seller', seller_id=a[0]) }}" class="link" style="font-size:13px; color:#fafafa; font-family: var(--font-body);">{{ a[1] }}</a></div>
+                        <div class="mono" style="font-size: 10px; margin-top: 2px;">{{ a[0][:16] }}…</div>
+                    </td>
+                    <td style="color:var(--text-2);">{{ a[2] }}</td>
+                </tr>
+                {% endfor %}
+                {% if not recent_alerts %}
+                <tr><td colspan="3" class="empty">No active alerts</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<div class="footer">VENDOR RISK INTELLIGENCE · DBMS PROJECT · 2026</div>
+
+</body>
+</html>

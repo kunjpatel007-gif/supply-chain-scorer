@@ -1,0 +1,51 @@
+InspectionID,DefectCategory,DefectTypeID
+17,Late Delivery,1
+20,Wrong Item,3
+30,Wrong Item,3
+33,Late Delivery,1
+40,Late Delivery,1
+52,Wrong Item,3
+69,Late Delivery,1
+74,Late Delivery,1
+76,Wrong Item,3
+77,Poor Quality,4
+88,Other,5
+90,Other,5
+105,Late Delivery,1
+111,Wrong Item,3
+116,Late Delivery,1
+120,Wrong Item,3
+129,Late Delivery,1
+132,Late Delivery,1
+133,Wrong Item,3
+136,Other,5
+146,Wrong Item,3
+150,Late Delivery,1
+151,Wrong Item,3
+168,Wrong Item,3
+169,Late Delivery,1
+170,Late Delivery,1
+181,Wrong Item,3
+191,Damaged Goods,2
+198,Late Delivery,1
+202,Other,5
+208,Wrong Item,3
+211,Other,5
+213,Late Delivery,1
+222,Late Delivery,1
+224,Wrong Item,3
+228,Late Delivery,1
+240,Late Delivery,1
+242,Late Delivery,1
+243,Poor Quality,4
+246,Late Delivery,1
+249,Wrong Item,3
+254,Wrong Item,3
+260,Damaged Goods,2
+263,Late Delivery,1
+264,Late Delivery,1
+268,Wrong Item,3
+277,Late Delivery,1
+293,Wrong Item,3
+297,Late Delivery,1
+304,Other,5
