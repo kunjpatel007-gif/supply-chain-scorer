@@ -3,473 +3,637 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ seller_info[2] }}</title>
+    <title>{{ seller_info[2] if seller_info else 'Unknown Seller' }} - Seller Detail</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         :root {
-            --void: #06070a;
-            --panel: #0d0f15;
-            --hairline: #1e222c;
-            --hairline-soft: rgba(255,255,255,0.05);
-            --text-1: #eef1f6;
-            --text-2: #8a93a6;
-            --text-3: #4a5163;
-            --accent: #7c8cff;
-            --accent-dim: rgba(124,140,255,0.10);
-            --risk-high: #ff5470;
-            --risk-high-dim: rgba(255,84,112,0.10);
-            --risk-med: #ffb648;
-            --risk-med-dim: rgba(255,182,72,0.10);
-            --risk-low: #2dd9a8;
-            --risk-low-dim: rgba(45,217,168,0.10);
-            --font-display: 'Space Grotesk', sans-serif;
-            --font-body: 'Inter', -apple-system, sans-serif;
-            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+            --bg-base: #0a0a0f;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.05);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --text-main: #e2e2e8;
+            --text-muted: #8b8b99;
+            
+            --coral: #ff6b6b;
+            --coral-dim: rgba(255, 107, 107, 0.15);
+            --amber: #fca311;
+            --amber-dim: rgba(252, 163, 17, 0.15);
+            --emerald: #20c997;
+            --emerald-dim: rgba(32, 201, 151, 0.15);
+            --blue: #4dabf7;
+            
+            --glass-blur: 12px;
+            --font-body: 'Inter', sans-serif;
+            --font-heading: 'Space Grotesk', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
             font-family: var(--font-body);
-            background: var(--void);
-            color: var(--text-1);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
-            background-size: 26px 26px;
-            position: relative;
+            line-height: 1.6;
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding-bottom: 4rem;
         }
-        body::before {
-            content: "";
-            position: fixed;
-            top: -220px; left: 50%;
+
+        /* Ambient Glow */
+        .ambient-glow {
+            position: absolute;
+            top: -20vh;
+            left: 50%;
             transform: translateX(-50%);
-            width: 900px; height: 420px;
-            background: radial-gradient(ellipse at center, var(--accent-dim), transparent 72%);
-            pointer-events: none;
+            width: 80vw;
+            height: 40vh;
+            background: radial-gradient(ellipse at center, rgba(77, 171, 247, 0.08) 0%, rgba(10, 10, 15, 0) 70%);
             z-index: 0;
+            pointer-events: none;
         }
 
-        :focus-visible { outline: 1.5px solid var(--accent); outline-offset: 2px; }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+        }
 
-        /* ── Navbar ── */
-        .navbar {
-            background: rgba(6,7,10,0.82);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border-bottom: 1px solid var(--hairline);
-            padding: 0 48px;
-            height: 56px;
+        /* Navbar */
+        nav {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            align-items: center;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-subtle);
         }
-        .navbar-brand { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: #fafafa; display: flex; align-items: center; gap: 10px; }
-        .mark { width: 12px; height: 12px; position: relative; flex-shrink: 0; }
-        .mark::before, .mark::after { content: ""; position: absolute; width: 5px; height: 5px; border: 1.4px solid var(--accent); }
-        .mark::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .mark::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-        .mark span {
-            position: absolute; top: 50%; left: 50%; width: 3px; height: 3px;
-            background: var(--accent); border-radius: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 6px 1px var(--accent);
-        }
-        .back-link {
-            font-family: var(--font-mono);
-            font-size: 11.5px;
-            color: var(--text-2);
-            text-decoration: none;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            transition: color 0.15s;
-        }
-        .back-link:hover { color: #fafafa; }
 
-        .container { max-width: 1080px; margin: 0 auto; padding: 40px 24px 56px; position: relative; z-index: 1; }
-        .mono { font-family: var(--font-mono); }
-
-        /* ── Header ── */
-        .header { margin-bottom: 32px; }
-        .header h1 {
-            font-family: var(--font-display);
-            font-size: 24px;
+        .brand {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
             font-weight: 700;
-            color: #fafafa;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+            text-decoration: none;
             display: flex;
             align-items: center;
-            gap: 12px;
-        }
-        .header-meta {
-            font-size: 12.5px;
-            color: var(--text-2);
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .header-meta span.id-code {
-            color: var(--text-2);
-            background: var(--panel);
-            padding: 3px 9px;
-            border: 1px solid var(--hairline);
-            border-radius: 4px;
-            font-size: 11px;
-            font-family: var(--font-mono);
+            gap: 0.5rem;
         }
 
-        /* ── Hero / ML ── */
-        .hero {
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-link:hover {
+            color: var(--text-main);
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-family: var(--font-heading);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .seller-meta {
+            display: flex;
+            gap: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .seller-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        /* Cards & Glassmorphism */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(var(--glass-blur));
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+
+        .card:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .card-title {
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Hero Section */
+        .hero-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 40px;
-        }
-        .panel {
-            background: var(--panel);
-            border: 1px solid var(--hairline);
-            border-radius: 10px;
-            padding: 24px;
-            position: relative;
-        }
-        .panel::before, .panel::after {
-            content: "";
-            position: absolute;
-            width: 10px; height: 10px;
-            opacity: 0.55;
-        }
-        .panel::before { top: -1px; left: -1px; border-top: 1.5px solid var(--bracket, var(--accent)); border-left: 1.5px solid var(--bracket, var(--accent)); }
-        .panel::after { bottom: -1px; right: -1px; border-bottom: 1.5px solid var(--bracket, var(--accent)); border-right: 1.5px solid var(--bracket, var(--accent)); }
-        .panel-label {
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            font-weight: 600;
-            color: var(--text-2);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 16px;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        /* live segmented indicator */
-        .segments { display: flex; gap: 6px; margin-bottom: 14px; }
+        /* Segmented Control (ML Prediction) */
+        .ml-prediction-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .segmented-control {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 0.25rem;
+            gap: 0.25rem;
+        }
+
         .segment {
             flex: 1;
             text-align: center;
-            padding: 10px 6px;
+            padding: 0.75rem 0;
+            font-weight: 600;
+            font-size: 0.875rem;
             border-radius: 6px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid var(--hairline);
-            color: var(--text-3);
-            transition: all 0.2s;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
         }
-        .segment.seg-low.active { background: var(--risk-low-dim); border-color: var(--risk-low); color: var(--risk-low); }
-        .segment.seg-med.active { background: var(--risk-med-dim); border-color: var(--risk-med); color: var(--risk-med); }
-        .segment.seg-high.active { background: var(--risk-high-dim); border-color: var(--risk-high); color: var(--risk-high); }
 
-        .ml-badge {
-            display: inline-block;
-            font-family: var(--font-display);
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: -0.2px;
-            margin-bottom: 4px;
+        .segment.active-low {
+            background: var(--emerald-dim);
+            color: var(--emerald);
+            box-shadow: 0 0 15px var(--emerald-dim);
         }
-        .ml-high { color: var(--risk-high); }
-        .ml-medium { color: var(--risk-med); }
-        .ml-low { color: var(--risk-low); }
 
-        .panel-caption { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+        .segment.active-medium {
+            background: var(--amber-dim);
+            color: var(--amber);
+            box-shadow: 0 0 15px var(--amber-dim);
+        }
 
-        /* radial gauge */
-        .gauge-row { display: flex; align-items: center; gap: 22px; }
+        .segment.active-high {
+            background: var(--coral-dim);
+            color: var(--coral);
+            box-shadow: 0 0 15px var(--coral-dim);
+        }
+
+        .ml-desc {
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Pipeline Gauge */
+        .gauge-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .gauge-wrapper {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        
+        {% set latest_score = history[0][1] if history else 0 %}
+        {% set score_color = "var(--coral)" if latest_score > 70 else ("var(--amber)" if latest_score > 30 else "var(--emerald)") %}
+
         .gauge {
-            width: 92px; height: 92px;
+            width: 100%;
+            height: 100%;
             border-radius: 50%;
-            flex-shrink: 0;
-            background: conic-gradient(var(--gauge-color, var(--accent)) calc(var(--score, 0) * 3.6deg), var(--hairline) 0deg);
-            display: flex; align-items: center; justify-content: center;
+            background: conic-gradient({{ score_color }} var(--score, 0%), rgba(255,255,255,0.05) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
         }
-        .gauge::before { content: ""; position: absolute; width: 74px; height: 74px; border-radius: 50%; background: var(--panel); }
-        .gauge-val { position: relative; z-index: 1; font-family: var(--font-mono); font-size: 19px; font-weight: 600; color: #fafafa; }
-        .gauge-val small { display: block; font-size: 9px; font-weight: 500; color: var(--text-3); margin-top: 1px; }
-        .gauge-meta { font-size: 12.5px; color: var(--text-2); }
-        .gauge-meta div { margin-bottom: 6px; }
-        .gauge-meta strong { color: #fafafa; font-weight: 600; }
 
-        /* ── Alerts ── */
-        .alerts {
-            background: var(--risk-high-dim);
-            border: 1px solid rgba(255,84,112,0.25);
-            border-left: 2px solid var(--risk-high);
-            border-radius: 8px;
-            padding: 18px 22px;
-            margin-bottom: 40px;
+        .gauge::before {
+            content: "";
+            position: absolute;
+            inset: 8px;
+            background: var(--bg-base);
+            border-radius: 50%;
         }
-        .alert-title {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--risk-high);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-        .alert-item { font-size: 13px; color: var(--text-1); margin-bottom: 5px; }
-        .alert-item strong { color: #ffb3c0; font-weight: 600; }
 
-        /* ── Section ── */
+        .gauge-value {
+            position: relative;
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .gauge-info h3 {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .gauge-info p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Telemetry Grid */
         .section-title {
-            font-family: var(--font-display);
-            font-size: 15px;
-            font-weight: 600;
-            color: #fafafa;
-            margin-bottom: 16px;
-            letter-spacing: -0.2px;
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            margin: 3rem 0 1.5rem;
+            letter-spacing: -0.02em;
         }
 
-        /* ── Features Grid ── */
-        .features {
+        .telemetry-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 40px;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
         }
-        .ft-card {
-            background: var(--panel);
-            border: 1px solid var(--hairline);
-            border-top: 2px solid var(--edge, var(--hairline));
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-value {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        /* Colors for values */
+        .text-emerald { color: var(--emerald); }
+        .text-coral { color: var(--coral); }
+        .text-amber { color: var(--amber); }
+        .text-neutral { color: var(--text-muted); }
+
+        /* Defects Section */
+        .defects-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .defect-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
             border-radius: 8px;
-            padding: 17px 20px;
         }
-        .ft-label {
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            color: var(--text-2);
+        
+        .defect-info h4 {
             font-weight: 500;
-            letter-spacing: 0.3px;
-            margin-bottom: 6px;
+            margin-bottom: 0.25rem;
         }
-        .ft-val { font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--text-1); letter-spacing: -0.3px; }
-        .ft-unit { font-size: 11px; color: var(--text-3); font-weight: 500; margin-left: 2px; }
-        .c-red { color: var(--risk-high); }
-        .c-amber { color: var(--risk-med); }
-        .c-green { color: var(--risk-low); }
+        
+        .defect-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
 
-        /* ── Defects ── */
-        .defects-panel {
-            background: var(--panel);
-            border: 1px solid var(--hairline);
-            border-radius: 10px;
-            padding: 24px;
-        }
-        .d-header {
+        .defect-stats {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--hairline);
-            padding-bottom: 16px;
+            gap: 1.5rem;
+            text-align: right;
         }
-        .d-penalty { font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: #fafafa; }
-        .d-list { display: flex; flex-direction: column; gap: 8px; }
-        .d-item {
+
+        .stat-block span {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        
+        .stat-block strong {
+            font-family: var(--font-heading);
+            font-size: 1rem;
+        }
+
+        /* Alerts Section */
+        .alerts-container {
+            margin-top: 3rem;
+        }
+
+        .alert-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 18px;
-            background: var(--void);
-            border: 1px solid var(--hairline);
-            border-radius: 6px;
-            font-size: 13px;
-        }
-        .d-name { font-weight: 500; color: var(--text-1); }
-        .d-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); background: var(--panel); padding: 3px 9px; border-radius: 4px; }
-        .d-count.c-red { color: var(--risk-high); background: var(--risk-high-dim); }
-        .d-count.c-amber { color: var(--risk-med); background: var(--risk-med-dim); }
-        .d-count.c-green { color: var(--risk-low); background: var(--risk-low-dim); }
-        .d-sev { font-family: var(--font-mono); font-weight: 600; font-size: 11.5px; }
-        .sev-high { color: var(--risk-high); }
-        .sev-med { color: var(--risk-med); }
-        .sev-low { color: var(--risk-low); }
-
-        .empty { font-size: 13px; color: var(--text-3); font-family: var(--font-mono); }
-
-        .footer {
-            text-align: center;
-            padding: 32px;
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            color: var(--text-3);
-            opacity: 0.5;
-            letter-spacing: 1px;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: var(--coral-dim);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            border-left: 4px solid var(--coral);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            align-items: flex-start;
         }
 
-        @media (max-width: 768px) {
-            .navbar { padding: 0 20px; }
-            .hero, .features { grid-template-columns: 1fr; }
+        .alert-icon {
+            color: var(--coral);
+            margin-top: 0.125rem;
+        }
+
+        .alert-content h4 {
+            color: var(--coral);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .alert-content p {
+            font-size: 0.875rem;
+            color: var(--text-main);
+        }
+
+        .alert-date {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: rgba(226, 226, 232, 0.6);
+            white-space: nowrap;
+        }
+
+        /* Icons SVG */
+        .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            stroke-width: 2;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .icon-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .hero-grid {
+                grid-template-columns: 1fr;
+            }
+            .telemetry-grid {
+                grid-template-columns: 1fr;
+            }
+            .gauge-container {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="ambient-glow"></div>
 
-<nav class="navbar">
-    <div class="navbar-brand"><span class="mark"><span></span></span>Vendor Risk Intelligence</div>
-    <a href="{{ url_for('index') }}" class="back-link">← DASHBOARD</a>
-</nav>
+    <div class="container">
+        <nav>
+            <a href="{{ url_for('index') }}" class="brand">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                VendorRisk
+            </a>
+            <a href="{{ url_for('index') }}" class="back-link">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back to Dashboard
+            </a>
+        </nav>
 
-<div class="container">
-
-    <div class="header">
-        <h1>{{ seller_info[2] }}</h1>
-        <div class="header-meta">
-            <span class="id-code mono">{{ seller_id }}</span>
-            <span>{{ seller_info[0] }}, {{ seller_info[1] }}</span>
-        </div>
-    </div>
-
-    <!-- Hero ML / Pipeline -->
-    <div class="hero">
-        <div class="panel" style="--bracket: {% if live_ml_category == 'High' %}var(--risk-high){% elif live_ml_category == 'Medium' %}var(--risk-med){% else %}var(--risk-low){% endif %};">
-            <div class="panel-label">Live ML Prediction</div>
-            <div class="segments">
-                <div class="segment seg-low {% if live_ml_category == 'Low' %}active{% endif %}">LOW</div>
-                <div class="segment seg-med {% if live_ml_category == 'Medium' %}active{% endif %}">MED</div>
-                <div class="segment seg-high {% if live_ml_category == 'High' %}active{% endif %}">HIGH</div>
+        <header>
+            <h1>{{ seller_info[2] if seller_info else 'Unknown Seller' }}</h1>
+            <div class="seller-meta">
+                <span>
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    ID: {{ seller_id }}
+                </span>
+                <span>
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ seller_info[0] if seller_info else 'Unknown' }}, {{ seller_info[1] if seller_info else 'Unknown' }}
+                </span>
             </div>
-            <div class="ml-badge ml-{{ live_ml_category|lower }}">{{ live_ml_category }} Risk</div>
-            <div class="panel-caption">Real-time XGBoost inference generated dynamically.</div>
-        </div>
+        </header>
 
-        {% if history %}
-        <div class="panel" style="--bracket: {% if history[0][2] == 'High' %}var(--risk-high){% elif history[0][2] == 'Medium' %}var(--risk-med){% else %}var(--risk-low){% endif %};">
-            <div class="panel-label">Pipeline Record ({{ history[0][0] }})</div>
-            <div class="gauge-row">
-                <div class="gauge" style="--score: {{ history[0][1] }}; --gauge-color: {% if history[0][2] == 'High' %}var(--risk-high){% elif history[0][2] == 'Medium' %}var(--risk-med){% else %}var(--risk-low){% endif %};">
-                    <div class="gauge-val">{{ "%.0f"|format(history[0][1]) }}<small>/ 100</small></div>
+        <!-- Hero Section -->
+        <div class="hero-grid">
+            <!-- ML Prediction -->
+            <div class="card ml-prediction-card">
+                <div class="card-title">Live ML Prediction</div>
+                {% set ml_cat = (live_ml_category|lower) if live_ml_category else 'low' %}
+                <div class="segmented-control">
+                    <div class="segment {% if ml_cat == 'low' %}active-low{% endif %}">LOW RISK</div>
+                    <div class="segment {% if ml_cat == 'medium' %}active-medium{% endif %}">MED RISK</div>
+                    <div class="segment {% if ml_cat == 'high' %}active-high{% endif %}">HIGH RISK</div>
                 </div>
-                <div class="gauge-meta">
-                    <div>Category: <strong>{{ history[0][2] }}</strong></div>
-                    <div>Trend: <strong>{{ history[0][3] }}</strong></div>
+                <p class="ml-desc">
+                    Based on recent telemetry, NLP analysis, and historical delivery performance. Model confidence is high.
+                </p>
+            </div>
+
+            <!-- Pipeline Record -->
+            <div class="card">
+                <div class="card-title">Pipeline Record</div>
+                <div class="gauge-container">
+                    <div class="gauge-wrapper">
+                        <div class="gauge" style="--score: {{ latest_score }}%;">
+                            <div class="gauge-value">{{ "%.1f"|format(latest_score) }}</div>
+                        </div>
+                    </div>
+                    <div class="gauge-info">
+                        <h3>Overall Score</h3>
+                        <p>Latest evaluation: {{ history[0][0] if history else 'N/A' }}</p>
+                        <p style="margin-top:0.5rem;">
+                            Trend: 
+                            {% set trend = history[0][3] if history else 'Stable' %}
+                            {% if trend == 'Worsening' %}
+                                <span class="text-coral">↘ Worsening</span>
+                            {% elif trend == 'Improving' %}
+                                <span class="text-emerald">↗ Improving</span>
+                            {% else %}
+                                <span class="text-neutral">→ Stable</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="panel">
-            <div class="panel-label">Pipeline Record</div>
-            <div class="empty">No historical risk scores found.</div>
+
+        {% if features %}
+        <h2 class="section-title">Feature Telemetry</h2>
+        <div class="telemetry-grid">
+            <!-- Col 1: Volume & Pricing -->
+            <div class="card">
+                <div class="card-title">Volume & Value</div>
+                <div class="metric-item">
+                    <span class="metric-label">Total Orders</span>
+                    <span class="metric-value">{{ features.total_orders|int }}</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Avg Price</span>
+                    <span class="metric-value">${{ "%.2f"|format(features.avg_price|default(0)) }}</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Price Volatility</span>
+                    <span class="metric-value">{{ "%.2f"|format(features.price_volatility|default(0)) }}</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Avg Freight</span>
+                    <span class="metric-value">${{ "%.2f"|format(features.avg_freight|default(0)) }}</span>
+                </div>
+            </div>
+
+            <!-- Col 2: Logistics & Performance -->
+            <div class="card">
+                <div class="card-title">Logistics Performance</div>
+                <div class="metric-item">
+                    <span class="metric-label">Avg Delay</span>
+                    <span class="metric-value">
+                        {% set delay = features.avg_delay_days|default(0)|float %}
+                        {% if delay < 0 %}
+                            <span class="text-emerald">{{ delay|abs|round|int }}d early</span>
+                        {% elif delay > 0 %}
+                            <span class="text-coral">{{ delay|round|int }}d late</span>
+                        {% else %}
+                            <span class="text-neutral">On Time</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Max Delay</span>
+                    <span class="metric-value">{{ features.max_delay_days|default(0)|int }}d</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Late Deliveries</span>
+                    <span class="metric-value">{{ "%.1f"|format((features.pct_late_deliveries|default(0) * 100)) }}%</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Rejection Rate</span>
+                    <span class="metric-value {% if features.rejection_rate|default(0) > 0.05 %}text-coral{% endif %}">
+                        {{ "%.1f"|format((features.rejection_rate|default(0) * 100)) }}%
+                    </span>
+                </div>
+            </div>
+
+            <!-- Col 3: Quality & Reviews -->
+            <div class="card">
+                <div class="card-title">Quality & Sentiment</div>
+                <div class="metric-item">
+                    <span class="metric-label">Avg Review</span>
+                    <span class="metric-value {% if features.avg_review_score|default(0) < 3.5 %}text-coral{% else %}text-emerald{% endif %}">
+                        {{ "%.1f"|format(features.avg_review_score|default(0)) }}/5.0
+                    </span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Negative Reviews</span>
+                    <span class="metric-value">{{ features.negative_review_count|default(0)|int }}</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Defect Penalty</span>
+                    <span class="metric-value">{{ "%.1f"|format(features.defect_penalty|default(0)) }}</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Unique Products</span>
+                    <span class="metric-value">{{ features.unique_products|default(0)|int }}</span>
+                </div>
+            </div>
         </div>
         {% endif %}
-    </div>
 
-    <!-- Alerts -->
-    {% if alerts %}
-    <div class="alerts">
-        <div class="alert-title">{{ alerts|length }} Active Alert{{ 's' if alerts|length > 1 else '' }}</div>
-        {% for alert in alerts %}
-        <div class="alert-item">
-            <strong class="mono">{{ alert[0].strftime('%Y-%m-%d') }}</strong> [Lvl {{ alert[2] }}] — {{ alert[1] }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Features -->
-    <div class="section-title">Feature Telemetry</div>
-    <div class="features">
-        <div class="ft-card">
-            <div class="ft-label">Orders Executed</div>
-            <div class="ft-val">{{ features['total_orders']|int }}</div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Items Sold</div>
-            <div class="ft-val">{{ features['total_items']|int }}</div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Avg Review</div>
-            <div class="ft-val">{{ "%.2f"|format(features['avg_review_score']) }}<span class="ft-unit">/5</span></div>
-        </div>
-        <div class="ft-card" style="--edge: {% if features['avg_delay_days'] > 0 %}var(--risk-high){% elif features['avg_delay_days'] < 0 %}var(--risk-low){% endif %};">
-            <div class="ft-label">Avg Delay</div>
-            <div class="ft-val">
-                {% if features['avg_delay_days'] < 0 %}
-                <span class="c-green">{{ "%.1f"|format(features['avg_delay_days']|abs) }}</span><span class="ft-unit">d early</span>
-                {% elif features['avg_delay_days'] > 0 %}
-                <span class="c-red">{{ "%.1f"|format(features['avg_delay_days']) }}</span><span class="ft-unit">d late</span>
-                {% else %}
-                <span style="color:var(--text-2);font-size:14px;">0</span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Max Delay</div>
-            <div class="ft-val">{{ features['max_delay_days']|int }}<span class="ft-unit">d</span></div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Late Rate</div>
-            <div class="ft-val">{{ "%.1f"|format(features['pct_late_deliveries']*100) }}<span class="ft-unit">%</span></div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Rejection Rate</div>
-            <div class="ft-val">{{ "%.1f"|format(features['rejection_rate']*100) }}<span class="ft-unit">%</span></div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Negative Reviews</div>
-            <div class="ft-val">{{ features['negative_review_count']|int }}</div>
-        </div>
-        <div class="ft-card">
-            <div class="ft-label">Avg Price</div>
-            <div class="ft-val">R$ {{ "%.2f"|format(features['avg_price']) }}</div>
-        </div>
-    </div>
-
-    <!-- NLP Defects -->
-    <div class="defects-panel">
-        <div class="d-header">
-            <div class="section-title" style="margin:0;">NLP Defect Analysis</div>
-            <div><span class="d-penalty mono">{{ "%.1f"|format(features.get('defect_penalty', 0)) }}</span> <span style="font-size:10.5px;color:var(--text-2); font-family: var(--font-mono);">PTS PENALTY</span></div>
-        </div>
         {% if defects %}
-        <div class="d-list">
+        <h2 class="section-title">NLP Defect Analysis</h2>
+        <div class="card defects-list">
             {% for defect in defects %}
-            <div class="d-item">
-                <div class="d-name">{{ defect[0] }}</div>
-                <div style="display:flex; gap:16px; align-items:center;">
-                    {% set total_orders = features['total_orders'] or 1 %}
-                    {% set rate = (defect[1] / total_orders) * 100 %}
-                    {% set c_class = '' %}
-                    {% if defect[2] >= 3.0 %}
-                        {% if rate >= 5.0 %}
-                            {% set c_class = 'c-red' %}
-                        {% elif rate >= 2.0 %}
-                            {% set c_class = 'c-amber' %}
-                        {% else %}
-                            {% set c_class = 'c-green' %}
-                        {% endif %}
-                    {% endif %}
-                    <span class="d-count {{ c_class }}">{{ defect[1] }} cases</span>
-                    <span class="d-sev {% if defect[2] >= 4.0 %}sev-high{% elif defect[2] >= 3.0 %}sev-med{% else %}sev-low{% endif %}">Sev {{ "%.1f"|format(defect[2]) }}</span>
+                {% set def_cat = defect[0] %}
+                {% set def_count = defect[1] %}
+                {% set def_weight = defect[2] %}
+                {% set total_orders = features.total_orders|default(1)|int %}
+                {% set total_orders = total_orders if total_orders > 0 else 1 %}
+                {% set def_rate = (def_count / total_orders) * 100 %}
+                
+                <div class="defect-row">
+                    <div class="defect-info">
+                        <h4>{{ def_cat }}</h4>
+                        <p>Severity Weight: {{ "%.1f"|format(def_weight) }}</p>
+                    </div>
+                    <div class="defect-stats">
+                        <div class="stat-block">
+                            <span>Occurrences</span>
+                            <strong>{{ def_count }}</strong>
+                        </div>
+                        <div class="stat-block">
+                            <span>Rate</span>
+                            <strong class="{% if def_rate > 5 and def_weight >= 1.5 %}text-coral{% elif def_rate > 2 %}text-amber{% endif %}">
+                                {{ "%.1f"|format(def_rate) }}%
+                            </strong>
+                        </div>
+                    </div>
                 </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if alerts %}
+        <div class="alerts-container">
+            <h2 class="section-title">System Alerts</h2>
+            {% for alert in alerts %}
+            <div class="alert-item">
+                <svg class="icon alert-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+                <div class="alert-content">
+                    <h4>Escalation Level: {{ alert[2] }}</h4>
+                    <p>{{ alert[1] }}</p>
+                </div>
+                <div class="alert-date">{{ alert[0].strftime('%Y-%m-%d') if alert[0] else '' }}</div>
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <div class="empty">No AI-identified defects for this vendor.</div>
         {% endif %}
+
     </div>
-
-</div>
-
-<div class="footer">VENDOR RISK INTELLIGENCE · DBMS PROJECT · 2026</div>
-
 </body>
 </html>

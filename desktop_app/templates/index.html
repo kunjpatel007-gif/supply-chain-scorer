@@ -3,482 +3,673 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vendor Risk Intelligence</title>
+    <title>Supply Chain Risk Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         :root {
-            --void: #06070a;
-            --panel: #0d0f15;
-            --panel-hover: #12151d;
-            --hairline: #1e222c;
-            --hairline-soft: rgba(255,255,255,0.05);
-            --text-1: #eef1f6;
-            --text-2: #8a93a6;
-            --text-3: #4a5163;
-            --accent: #7c8cff;
-            --accent-dim: rgba(124,140,255,0.10);
-            --risk-high: #ff5470;
-            --risk-high-dim: rgba(255,84,112,0.10);
-            --risk-med: #ffb648;
-            --risk-med-dim: rgba(255,182,72,0.10);
-            --risk-low: #2dd9a8;
-            --risk-low-dim: rgba(45,217,168,0.10);
-            --font-display: 'Space Grotesk', sans-serif;
-            --font-body: 'Inter', -apple-system, sans-serif;
-            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+            --bg-color: #0a0a0f;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-blue: #8b5cf6; /* soft purple/blue */
+            --danger: #ff6b6b;
+            --warning: #f0a030;
+            --safe: #34d399;
         }
 
-        html { scroll-behavior: smooth; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
-            font-family: var(--font-body);
-            background: var(--void);
-            color: var(--text-1);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            background-image:
-                radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
-            background-size: 26px 26px;
-            position: relative;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
             min-height: 100vh;
-        }
-        body::before {
-            content: "";
-            position: fixed;
-            top: -220px; left: 50%;
-            transform: translateX(-50%);
-            width: 900px; height: 420px;
-            background: radial-gradient(ellipse at center, var(--accent-dim), transparent 72%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        :focus-visible { outline: 1.5px solid var(--accent); outline-offset: 2px; }
-
-        /* ── Navbar ── */
-        .navbar {
-            background: rgba(6,7,10,0.82);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border-bottom: 1px solid var(--hairline);
-            padding: 0 48px;
-            height: 56px;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        /* Ambient glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, rgba(10, 10, 15, 0) 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1, h2, h3, h4, h5, h6, .brand-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* Navbar */
+        nav {
+            display: flex;
             justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 3rem;
+            border-bottom: 1px solid var(--card-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: rgba(10, 10, 15, 0.5);
             position: sticky;
             top: 0;
             z-index: 100;
         }
-        .navbar-brand {
-            font-family: var(--font-display);
-            font-size: 14px;
-            font-weight: 600;
-            color: #fafafa;
-            letter-spacing: -0.2px;
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 10px;
-        }
-        .mark {
-            width: 12px; height: 12px;
-            position: relative;
-            flex-shrink: 0;
-        }
-        .mark::before, .mark::after {
-            content: "";
-            position: absolute;
-            width: 5px; height: 5px;
-            border: 1.4px solid var(--accent);
-        }
-        .mark::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .mark::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-        .mark span {
-            position: absolute; top: 50%; left: 50%;
-            width: 3px; height: 3px;
-            background: var(--accent);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 6px 1px var(--accent);
-            animation: pulse 2.4s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-        }
-        .navbar-meta {
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            color: var(--text-3);
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            gap: 0.5rem;
+            letter-spacing: -0.5px;
         }
 
-        .container {
-            max-width: 1080px;
+        .brand-icon {
+            color: var(--accent-blue);
+        }
+
+        .nav-tag {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: var(--card-bg);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+        }
+
+        main {
+            flex: 1;
+            padding: 2.5rem 3rem;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 40px 24px 56px;
+            width: 100%;
+        }
+
+        /* Header / Search */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .page-title h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-title p {
+            color: var(--text-muted);
+        }
+
+        .search-container {
             position: relative;
+        }
+
+        .search-form {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 30px;
+            padding: 0.3rem 0.5rem 0.3rem 1.2rem;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        .search-form:focus-within {
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+        }
+
+        .search-input {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            width: 250px;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: scale(1.05);
+            background: #9c72f7;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            text-decoration: none;
+        }
+        
+        a.stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Glow effects for cards */
+        .stat-card.total:hover::after { background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%); }
+        .stat-card.high:hover::after { background: radial-gradient(circle at center, rgba(255, 107, 107, 0.1) 0%, transparent 70%); }
+        .stat-card.medium:hover::after { background: radial-gradient(circle at center, rgba(240, 160, 48, 0.1) 0%, transparent 70%); }
+        .stat-card.low:hover::after { background: radial-gradient(circle at center, rgba(52, 211, 153, 0.1) 0%, transparent 70%); }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .stat-card:hover::after {
+            opacity: 1;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
             z-index: 1;
         }
 
-        .page-header { margin-bottom: 36px; }
-        .page-header h1 {
-            font-family: var(--font-display);
-            font-size: 24px;
-            font-weight: 700;
-            color: #fafafa;
-            letter-spacing: -0.5px;
-        }
-        .page-header p {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-3);
-            margin-top: 6px;
-            letter-spacing: 0.2px;
+        .stat-title {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
         }
 
-        /* ── Search ── */
-        .search-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 36px;
-        }
-        .search-bar input {
-            flex: 1;
-            padding: 12px 16px;
-            background: var(--panel);
-            border: 1px solid var(--hairline);
-            border-radius: 8px;
-            color: var(--text-1);
-            font-size: 13px;
-            font-family: var(--font-body);
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .search-bar input::placeholder { color: var(--text-3); }
-        .search-bar input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-dim);
-        }
-        .btn {
-            padding: 12px 24px;
-            background: var(--accent);
-            color: #06070a;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            font-family: var(--font-body);
-            cursor: pointer;
-            transition: filter 0.15s, transform 0.15s;
-            white-space: nowrap;
-        }
-        .btn:hover { filter: brightness(1.1); }
-        .btn:active { transform: scale(0.98); }
-
-        /* ── Stats ── */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 40px;
-        }
-        .stat {
-            background: var(--panel);
-            border: 1px solid var(--hairline);
+        .stat-icon {
+            width: 40px;
+            height: 40px;
             border-radius: 10px;
-            padding: 20px 22px;
-            position: relative;
-            text-decoration: none;
-            display: block;
-            transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
-        }
-        a.stat:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .stat::before, .stat::after {
-            content: "";
-            position: absolute;
-            width: 9px; height: 9px;
-            opacity: 0.55;
-        }
-        .stat::before { top: -1px; left: -1px; border-top: 1.5px solid var(--bracket, var(--text-3)); border-left: 1.5px solid var(--bracket, var(--text-3)); }
-        .stat::after { bottom: -1px; right: -1px; border-bottom: 1.5px solid var(--bracket, var(--text-3)); border-right: 1.5px solid var(--bracket, var(--text-3)); }
-        .stat.a-total { --bracket: var(--accent); }
-        .stat.a-high { --bracket: var(--risk-high); }
-        .stat.a-med { --bracket: var(--risk-med); }
-        .stat.a-low { --bracket: var(--risk-low); }
-        .stat-label {
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            font-weight: 500;
-            color: var(--text-2);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-        .stat-val {
-            font-family: var(--font-display);
-            font-size: 32px;
-            font-weight: 700;
-            letter-spacing: -1px;
-        }
-        .c-red { color: var(--risk-high); }
-        .c-amber { color: var(--risk-med); }
-        .c-green { color: var(--risk-low); }
-        .c-white { color: #fafafa; }
-
-        /* ── Section ── */
-        .section-label {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--text-2);
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
         }
 
-        /* ── Table ── */
-        .table-container {
-            background: var(--panel);
-            border: 1px solid var(--hairline);
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 40px;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            font-weight: 500;
-            color: var(--text-3);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            padding: 12px 20px;
-            text-align: left;
-            border-bottom: 1px solid var(--hairline);
-        }
-        tbody td {
-            font-size: 13px;
-            padding: 13px 20px;
-            color: var(--text-2);
-            border-bottom: 1px solid var(--hairline-soft);
-        }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr { transition: background 0.12s; }
-        tbody tr:hover { background: rgba(124,140,255,0.035); }
+        .stat-icon svg { width: 20px; height: 20px; }
 
-        .mono {
-            font-family: var(--font-mono);
-            font-size: 11.5px;
-            color: var(--text-3);
-        }
-        .score-cell { display: flex; align-items: center; gap: 10px; }
-        .score-col {
-            font-family: var(--font-mono);
-            color: #fafafa;
+        .stat-icon.total { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+        .stat-icon.high { background: rgba(255, 107, 107, 0.15); color: var(--danger); }
+        .stat-icon.medium { background: rgba(240, 160, 48, 0.15); color: var(--warning); }
+        .stat-icon.low { background: rgba(52, 211, 153, 0.15); color: var(--safe); }
+
+        .stat-value {
+            font-size: 2.5rem;
             font-weight: 600;
-            font-size: 13px;
-            min-width: 30px;
-        }
-        .score-bar {
-            width: 56px; height: 3px;
-            background: var(--hairline);
-            border-radius: 2px;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-        .score-bar > span {
-            display: block;
-            height: 100%;
-            border-radius: 2px;
-            background: var(--bar-color, var(--accent));
+            font-family: 'Space Grotesk', sans-serif;
+            line-height: 1;
+            z-index: 1;
         }
 
-        /* ── Badges ── */
+        /* Content Grid (Table + Alerts) */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 1024px) {
+            .content-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5rem;
+            text-align: left;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 1rem 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        tr.row-item {
+            background: rgba(255, 255, 255, 0.01);
+            transition: all 0.2s ease;
+        }
+
+        tr.row-item td {
+            padding: 1rem;
+            border-top: 1px solid transparent;
+            border-bottom: 1px solid transparent;
+        }
+
+        tr.row-item td:first-child { border-left: 1px solid transparent; border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+        tr.row-item td:last-child { border-right: 1px solid transparent; border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+        tr.row-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            transform: scale(1.01);
+        }
+
+        .seller-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .seller-name {
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 0.2rem;
+        }
+
+        .seller-id {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .score-bar-container {
+            width: 100px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.4rem;
+        }
+
+        .score-bar {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--text-muted);
+        }
+
+        .score-bar.high { background: var(--danger); }
+        .score-bar.medium { background: var(--warning); }
+        .score-bar.low { background: var(--safe); }
+
         .badge {
-            display: inline-block;
-            padding: 3px 9px;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 10px;
+            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.5px;
-        }
-        .badge-high { background: var(--risk-high-dim); color: var(--risk-high); }
-        .badge-medium { background: var(--risk-med-dim); color: var(--risk-med); }
-        .badge-low { background: var(--risk-low-dim); color: var(--risk-low); }
-
-        .trend { font-size: 13px; font-weight: 500; }
-        .t-up { color: var(--risk-high); }
-        .t-down { color: var(--risk-low); }
-        .t-stable { color: var(--text-3); }
-        .t-new { color: var(--accent); }
-
-        .link {
-            color: var(--accent);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            font-family: var(--font-mono);
-        }
-        .link:hover { color: #a5b1ff; }
-
-        /* ── Alerts ── */
-        .alert-dot {
-            width: 6px; height: 6px;
-            background: var(--risk-high);
-            border-radius: 50%;
             display: inline-block;
-            box-shadow: 0 0 6px 1px var(--risk-high-dim);
-            animation: blink 2.5s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.25; }
         }
 
-        .empty { padding: 24px 20px; font-size: 13px; color: var(--text-3); text-align: center; font-family: var(--font-mono); }
+        .badge.high { background: rgba(255, 107, 107, 0.15); color: var(--danger); border: 1px solid rgba(255, 107, 107, 0.2); }
+        .badge.medium { background: rgba(240, 160, 48, 0.15); color: var(--warning); border: 1px solid rgba(240, 160, 48, 0.2); }
+        .badge.low { background: rgba(52, 211, 153, 0.15); color: var(--safe); border: 1px solid rgba(52, 211, 153, 0.2); }
 
-        .footer {
+        .trend {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.85rem;
+        }
+
+        .trend.up { color: var(--danger); }
+        .trend.down { color: var(--safe); }
+        .trend.stable { color: var(--text-muted); }
+        .trend.new { color: var(--accent-blue); font-weight: 500; }
+
+        .action-link {
+            color: var(--text-muted);
+            transition: color 0.2s;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .action-link:hover { color: var(--text-main); }
+
+        /* Alerts List */
+        .alerts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .alert-item {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .alert-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-title {
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .alert-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .alert-message {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .empty-state {
             text-align: center;
-            padding: 32px;
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            color: var(--text-3);
-            opacity: 0.5;
-            letter-spacing: 1px;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-style: italic;
         }
 
-        @media (max-width: 768px) {
-            .navbar { padding: 0 20px; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            .search-bar { flex-direction: column; }
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--card-border);
+            margin-top: auto;
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar">
-    <div class="navbar-brand"><span class="mark"><span></span></span>Vendor Risk Intelligence</div>
-    <span class="navbar-meta">Supply Chain Analytics</span>
-</nav>
+    <nav>
+        <a href="{{ url_for('index') }}" class="brand">
+            <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            <span class="brand-font">NexusRisk</span>
+        </a>
+        <div class="nav-tag">Main Dashboard</div>
+    </nav>
 
-<div class="container">
-
-    <div class="page-header">
-        <h1>Risk Overview</h1>
-        <p>REAL-TIME VENDOR MONITORING · XGBOOST ML · NLP DEFECT ANALYSIS</p>
-    </div>
-
-    <form class="search-bar" action="{{ url_for('search') }}" method="POST">
-        <input list="sellers-list" type="text" name="seller_id" placeholder="Enter Seller ID for live ML analysis…" required>
-        <datalist id="sellers-list">
-            {% for s in all_sellers %}
-            <option value="{{ s[0] }}">{{ s[1] }}</option>
-            {% endfor %}
-        </datalist>
-        <button type="submit" class="btn">Analyze →</button>
-    </form>
-
-    <div class="stats">
-        <div class="stat a-total">
-            <div class="stat-label">Total Sellers</div>
-            <div class="stat-val c-white">{{ total_sellers }}</div>
+    <main>
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Overview</h1>
+                <p>System-wide vendor risk assessment summary</p>
+            </div>
+            
+            <div class="search-container">
+                <form action="{{ url_for('search') }}" method="POST" class="search-form">
+                    <input type="text" name="seller_id" list="seller-list" class="search-input" placeholder="Search by Seller ID or Name..." required autocomplete="off">
+                    <datalist id="seller-list">
+                        {% for s in all_sellers %}
+                        <option value="{{ s[0] }}">{{ s[1] }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <button type="submit" class="search-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </form>
+            </div>
         </div>
-        <a href="{{ url_for('category_list', risk_level='high') }}" class="stat a-high">
-            <div class="stat-label">High Risk</div>
-            <div class="stat-val c-red">{{ category_counts.get('High', 0) }}</div>
-        </a>
-        <a href="{{ url_for('category_list', risk_level='medium') }}" class="stat a-med">
-            <div class="stat-label">Medium Risk</div>
-            <div class="stat-val c-amber">{{ category_counts.get('Medium', 0) }}</div>
-        </a>
-        <a href="{{ url_for('category_list', risk_level='low') }}" class="stat a-low">
-            <div class="stat-label">Low Risk</div>
-            <div class="stat-val c-green">{{ category_counts.get('Low', 0) }}</div>
-        </a>
-    </div>
 
-    <div class="section-label">Top 10 — Highest Risk</div>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Seller</th>
-                    <th>Score</th>
-                    <th>Risk</th>
-                    <th>Trend</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in top_risky %}
-                <tr>
-                    <td>
-                        <div style="font-weight: 500; color: #fafafa;">{{ s[1] }}</div>
-                        <div class="mono" style="font-size: 10px; margin-top: 2px;">{{ s[0][:16] }}…</div>
-                    </td>
-                    <td>
-                        <div class="score-cell">
-                            <span class="score-col">{{ "%.1f"|format(s[2]) }}</span>
-                            <span class="score-bar" style="--bar-color: {% if s[3] == 'High' %}var(--risk-high){% elif s[3] == 'Medium' %}var(--risk-med){% else %}var(--risk-low){% endif %};"><span style="width: {{ s[2] }}%;"></span></span>
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-header">
+                    <span class="stat-title">Total Sellers</span>
+                    <div class="stat-icon total">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">{{ total_sellers }}</div>
+            </div>
+
+            <a href="{{ url_for('category_list', risk_level='high') }}" class="stat-card high">
+                <div class="stat-header">
+                    <span class="stat-title">High Risk</span>
+                    <div class="stat-icon high">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">{{ category_counts.get('High', 0) }}</div>
+            </a>
+
+            <a href="{{ url_for('category_list', risk_level='medium') }}" class="stat-card medium">
+                <div class="stat-header">
+                    <span class="stat-title">Medium Risk</span>
+                    <div class="stat-icon medium">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">{{ category_counts.get('Medium', 0) }}</div>
+            </a>
+
+            <a href="{{ url_for('category_list', risk_level='low') }}" class="stat-card low">
+                <div class="stat-header">
+                    <span class="stat-title">Low Risk</span>
+                    <div class="stat-icon low">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">{{ category_counts.get('Low', 0) }}</div>
+            </a>
+        </div>
+
+        <div class="content-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Top Risky Sellers</h2>
+                </div>
+                <div class="table-container">
+                    {% if top_risky %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Seller</th>
+                                <th>Score</th>
+                                <th>Risk Level</th>
+                                <th>Trend</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in top_risky %}
+                            <tr class="row-item">
+                                <td>
+                                    <div class="seller-info">
+                                        <span class="seller-name">{{ s[1] }}</span>
+                                        <span class="seller-id">{{ s[0][:16] }}&hellip;</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="score-val">{{ "%.1f"|format(s[2]) }}</span>
+                                    <div class="score-bar-container">
+                                        <div class="score-bar {% if s[3]|lower == 'high' %}high{% elif s[3]|lower == 'medium' %}medium{% else %}low{% endif %}" style="width: {{ s[2] }}%;"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {% if s[3]|lower == 'high' %}high{% elif s[3]|lower == 'medium' %}medium{% else %}low{% endif %}">
+                                        {{ s[3]|upper }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="trend {{ s[4]|lower }}">
+                                        {% if s[4] == 'UP' %}
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Increasing
+                                        {% elif s[4] == 'DOWN' %}
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> Decreasing
+                                        {% elif s[4] == 'STABLE' %}
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg> Stable
+                                        {% elif s[4] == 'NEW' %}
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> New
+                                        {% else %}
+                                        {{ s[4] }}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('seller', seller_id=s[0]) }}" class="action-link" title="View Details">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M5 12h14"></path>
+                                            <path d="M12 5l7 7-7 7"></path>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state">No risky sellers identified.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Alerts</h2>
+                </div>
+                <div class="alerts-list">
+                    {% if recent_alerts %}
+                        {% for a in recent_alerts %}
+                        <div class="alert-item">
+                            <div class="alert-header">
+                                <span class="alert-title">{{ a[1] }}</span>
+                                <span class="alert-date">{{ a[3].strftime('%Y-%m-%d') if a[3] else 'N/A' }}</span>
+                            </div>
+                            <div class="alert-message">{{ a[2] }}</div>
                         </div>
-                    </td>
-                    <td>
-                        {% if s[3] == 'High' %}<span class="badge badge-high">HIGH</span>
-                        {% elif s[3] == 'Medium' %}<span class="badge badge-medium">MED</span>
-                        {% else %}<span class="badge badge-low">LOW</span>{% endif %}
-                    </td>
-                    <td>
-                        {% if s[4] == 'UP' %}<span class="trend t-up">▲</span>
-                        {% elif s[4] == 'DOWN' %}<span class="trend t-down">▼</span>
-                        {% elif s[4] == 'NEW' %}<span class="trend t-new">★</span>
-                        {% else %}<span class="trend t-stable">—</span>{% endif %}
-                    </td>
-                    <td><a href="{{ url_for('seller', seller_id=s[0]) }}" class="link">View →</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">No recent alerts.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-    <div class="section-label"><span class="alert-dot"></span>Recent Alerts</div>
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Date</th><th>Seller</th><th>Message</th></tr></thead>
-            <tbody>
-                {% for a in recent_alerts %}
-                <tr>
-                    <td class="mono" style="color:var(--text-3);">{{ a[3].strftime('%Y-%m-%d') }}</td>
-                    <td>
-                        <div style="font-weight: 500;"><a href="{{ url_for('seller', seller_id=a[0]) }}" class="link" style="font-size:13px; color:#fafafa; font-family: var(--font-body);">{{ a[1] }}</a></div>
-                        <div class="mono" style="font-size: 10px; margin-top: 2px;">{{ a[0][:16] }}…</div>
-                    </td>
-                    <td style="color:var(--text-2);">{{ a[2] }}</td>
-                </tr>
-                {% endfor %}
-                {% if not recent_alerts %}
-                <tr><td colspan="3" class="empty">No active alerts</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
+    </main>
 
-</div>
-
-<div class="footer">VENDOR RISK INTELLIGENCE · DBMS PROJECT · 2026</div>
+    <footer>
+        &copy; 2026 NexusRisk Supply Chain Intelligence. Premium Vendor Scoring.
+    </footer>
 
 </body>
 </html>
