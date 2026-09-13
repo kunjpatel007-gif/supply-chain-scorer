@@ -554,8 +554,9 @@
                 </div>
                 <div class="metric-item">
                     <span class="metric-label">Rejection Rate</span>
-                    <span class="metric-value {% if features.rejection_rate|default(0) > 0.05 %}text-coral{% endif %}">
-                        {{ "%.1f"|format((features.rejection_rate|default(0) * 100)) }}%
+                    {% set rej_pct = features.rejection_rate|default(0) * 100 %}
+                    <span class="metric-value {% if rej_pct > 15 %}text-coral{% elif rej_pct > 5 %}text-amber{% else %}text-emerald{% endif %}">
+                        {{ "%.1f"|format(rej_pct) }}%
                     </span>
                 </div>
             </div>
@@ -596,9 +597,18 @@
                 {% set total_orders = total_orders if total_orders > 0 else 1 %}
                 {% set def_rate = (def_count / total_orders) * 100 %}
                 
+                {% if def_cat == 'No Defect' or def_weight < 2 %}
+                    {% set defect_color_class = 'text-emerald' %}
+                {% elif def_weight <= 3 %}
+                    {% set defect_color_class = 'text-amber' %}
+                {% elif def_weight <= 4 %}
+                    {% set defect_color_class = 'text-coral' %}
+                {% else %}
+                    {% set defect_color_class = 'text-coral' %}
+                {% endif %}
                 <div class="defect-row">
                     <div class="defect-info">
-                        <h4>{{ def_cat }}</h4>
+                        <h4 class="{{ defect_color_class }}">{{ def_cat }}</h4>
                         <p>Severity Weight: {{ "%.1f"|format(def_weight) }}</p>
                     </div>
                     <div class="defect-stats">
@@ -608,7 +618,7 @@
                         </div>
                         <div class="stat-block">
                             <span>Rate</span>
-                            <strong class="{% if def_rate > 5 and def_weight >= 1.5 %}text-coral{% elif def_rate > 2 %}text-amber{% endif %}">
+                            <strong class="{% if def_rate > 10 %}text-coral{% elif def_rate > 3 %}text-amber{% else %}text-emerald{% endif %}">
                                 {{ "%.1f"|format(def_rate) }}%
                             </strong>
                         </div>

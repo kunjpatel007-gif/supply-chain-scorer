@@ -2,10 +2,6 @@ import os
 import sys
 import threading
 import subprocess
-import oracledb
-import cryptography.hazmat.primitives.kdf.pbkdf2
-import cryptography.hazmat.backends
-import webview
 import tkinter as tk
 from tkinter import messagebox
 
@@ -16,6 +12,7 @@ def get_base_path():
 
 def check_db_connection(username, password, dsn):
     try:
+        import oracledb
         conn = oracledb.connect(user=username, password=password, dsn=dsn)
         conn.close()
         return True
@@ -66,6 +63,7 @@ def setup_gui():
     return result
 
 def bootstrap_database(creds):
+    import oracledb
     conn = oracledb.connect(user=creds['user'], password=creds['pass'], dsn=creds['dsn'])
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM user_tables WHERE table_name = 'SELLER'")
@@ -106,6 +104,9 @@ def main():
     
     sys.path.insert(0, get_base_path())
     try:
+        import cryptography.hazmat.primitives.kdf.pbkdf2
+        import cryptography.hazmat.backends
+        import webview
         from app import app as flask_app
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load Flask App:\n{e}")
