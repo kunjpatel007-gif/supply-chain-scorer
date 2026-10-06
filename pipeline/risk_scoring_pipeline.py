@@ -191,6 +191,8 @@ def get_seller_features(db, seller_id=None):
     if not po_lines_df.empty and not qi_df.empty:
         po_qi = pd.merge(po_lines_df[['SellerID', 'PO_ID']].drop_duplicates(), qi_df, on='PO_ID', how='inner')
         if not po_qi.empty and not dt_df.empty:
+            po_qi['DefectTypeID'] = po_qi['DefectTypeID'].astype(str)
+            dt_df['DefectTypeID'] = dt_df['DefectTypeID'].astype(str)
             po_qi = pd.merge(po_qi, dt_df, on='DefectTypeID', how='left')
         elif not po_qi.empty:
             po_qi['SeverityWeight'] = np.nan

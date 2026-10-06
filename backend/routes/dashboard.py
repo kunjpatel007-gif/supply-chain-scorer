@@ -10,6 +10,15 @@ from backend.firebase_client import db
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+SELLER_MAP_CACHE = None
+
+def get_seller_map():
+    global SELLER_MAP_CACHE
+    if SELLER_MAP_CACHE is None:
+        sellers_ref = db.collection('sellers').get()
+        SELLER_MAP_CACHE = {s.id: s.to_dict().get('sellerName', 'Unknown') for s in sellers_ref}
+    return SELLER_MAP_CACHE
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -21,14 +30,11 @@ def login_required(f):
 @dashboard_bp.route('/')
 @login_required
 def index():
-    total_sellers_query = db.collection('sellers').count().get()
-    total_sellers = total_sellers_query[0][0].value if total_sellers_query else 0
+    seller_map = get_seller_map()
+    total_sellers = len(seller_map)
     
-    sellers_ref = db.collection('sellers').get()
-    all_sellers = []
-    for s in sellers_ref:
-        doc = s.to_dict()
-        all_sellers.append((s.id, doc.get('sellerName', 'Unknown')))
+    # Sort for the dropdown if needed, though we don't pass all_sellers directly anymore except for backwards compat
+    all_sellers = [(sid, name) for sid, name in seller_map.items()]
 
     risk_scores_ref = db.collection('risk_scores').get()
     category_counts = {}
@@ -93,10 +99,9 @@ def category_list(risk_level):
     if risk_level_title not in ['High', 'Medium', 'Low']:
         return redirect(url_for('dashboard.index'))
 
-    sellers_ref = db.collection('sellers').get()
-    seller_map = {s.id: s.to_dict().get('sellerName', 'Unknown') for s in sellers_ref}
+    seller_map = get_seller_map()
 
-    risk_scores = db.collection('risk_scores').where('RiskCategory', '==', risk_level_title).get()
+    risk_scores = db.collection('risk_scores').where(filter=firestore.FieldFilter('RiskCategory', '==', risk_level_title)).get()
     results = []
     for r in risk_scores:
         d = r.to_dict()
