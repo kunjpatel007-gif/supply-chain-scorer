@@ -105,8 +105,9 @@ def simulate_event():
 
         return redirect(url_for('dashboard.index'))
 
-    # GET request: Fetch sellers for the dropdown
-    sellers_ref = db.collection('sellers').limit(50).stream()
-    sellers = [{'id': doc.id, 'name': doc.to_dict().get('sellerName', 'Unknown')} for doc in sellers_ref]
+    # GET request: Fetch sellers from the ultra-fast RAM Cache
+    from backend.routes.dashboard import get_seller_map
+    seller_map = get_seller_map()
+    sellers = [{'id': sid, 'name': name} for sid, name in seller_map.items()]
     
     return render_template('simulate.html', sellers=sellers)

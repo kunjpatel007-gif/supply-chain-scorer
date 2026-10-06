@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | NexusRisk{% endblock %}
+{% block head %}<style>
+.search{display:flex;align-items:center;gap:.4rem;width:260px;padding:.3rem .3rem .3rem 1.1rem;border:1px solid var(--line);border-radius:999px;background:var(--glass);transition:width .45s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
+.search:focus-within{width:340px;border-color:var(--acc);box-shadow:0 0 0 4px rgba(143,180,255,.1)}
+.search input,.search input:focus{border:0;background:none;box-shadow:none;padding:.4rem 0}
+.search button{width:34px;height:34px;border-radius:50%;border:0;background:var(--acc);color:#0a0c11;display:grid;place-items:center;cursor:pointer;transition:transform .25s}
+.search button:hover{transform:scale(1.08) rotate(-8deg)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1rem}
+.stat{display:block}.stat.total{--c:var(--acc)}
+.stat .lbl{display:flex;align-items:center;gap:.5rem;color:var(--mute);font-size:.85rem;margin-bottom:1.1rem}
+.stat .lbl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.cols{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
+@media(max-width:1000px){.cols{grid-template-columns:1fr}}
+.glass .sec{margin:0 0 1rem}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
+th{font-weight:400;font-size:.8rem;color:var(--mute);text-align:left;padding:0 .8rem .8rem}
+td{padding:.9rem .8rem;border-top:1px solid var(--line)}
+tbody tr{transition:background .25s}tbody tr:hover{background:rgba(255,255,255,.035)}
+.nm{font-weight:500;display:block}
+.trend{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem}
+.trend.up{color:var(--hi)}.trend.down{color:var(--lo)}.trend.stable{color:var(--mute)}.trend.new{color:var(--acc)}
+.al{padding:.9rem 0;border-top:1px solid var(--line)}.al:first-child{border-top:0;padding-top:0}
+.al div{display:flex;justify-content:space-between;gap:1rem}.al small{color:var(--mute)}
+.al p{color:var(--mute);font-size:.85rem;margin-top:.25rem}
+</style>{% endblock %}
+{% block actions %}
+<a class="pill" href="{{ url_for('simulator.simulate_event') }}"><svg class="i" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Simulate</span></a>
+<a class="pill on" href="{{ url_for('sellers.add_seller') }}"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add seller</span></a>
+<a class="pill" href="{{ url_for('auth.logout') }}" title="Logout" aria-label="Logout"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></a>
+{% endblock %}
+{% block content %}
+<div class="head rise">
+    <h1>Overview</h1>
+    <form action="{{ url_for('sellers.search') }}" method="POST" class="search">
+        <input type="text" name="seller_id" list="seller-list" placeholder="Search" required autocomplete="off">
+        <datalist id="seller-list">
+            {% for s in all_sellers %}
+            <option value="{{ s[0] }}">{{ s[0] }} ({{ s[1][:8] }}…)</option>
+            {% endfor %}
+        </datalist>
+        <button type="submit" aria-label="Search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+    </form>
+</div>
+
+<div class="stats">
+    <div class="glass stat total rise" style="--i:1"><div class="lbl">Total sellers</div><div class="num" data-n>{{ total_sellers }}</div></div>
+    <a href="{{ url_for('dashboard.category_list', risk_level='high') }}" class="glass stat high rise" style="--i:2"><div class="lbl">High risk</div><div class="num" data-n>{{ category_counts.get('High', 0) }}</div></a>
+    <a href="{{ url_for('dashboard.category_list', risk_level='medium') }}" class="glass stat medium rise" style="--i:3"><div class="lbl">Medium risk</div><div class="num" data-n>{{ category_counts.get('Medium', 0) }}</div></a>
+    <a href="{{ url_for('dashboard.category_list', risk_level='low') }}" class="glass stat low rise" style="--i:4"><div class="lbl">Low risk</div><div class="num" data-n>{{ category_counts.get('Low', 0) }}</div></a>
+</div>
+
+<div class="cols">
+    <div class="glass rise" style="--i:5">
+        <h2 class="sec">Top Risky Sellers</h2>
+        <div class="tw">
+        {% if top_risky %}
+        <table>
+            <thead><tr><th>Seller</th><th>Score</th><th>Risk Level</th><th>Trend</th><th></th></tr></thead>
+            <tbody>
+                {% for s in top_risky %}
+                <tr>
+                    <td><span class="nm">{{ s[1] }}</span><span class="id">{{ s[0][:16] }}&hellip;</span></td>
+                    <td>
+                        <span>{{ "%.1f"|format(s[2]) }}</span>
+                        <div class="track"><div class="fill {% if s[3]|lower == 'high' %}high{% elif s[3]|lower == 'medium' %}medium{% else %}low{% endif %}" style="width: {{ s[2] }}%;"></div></div>
+                    </td>
+                    <td><span class="badge {% if s[3]|lower == 'high' %}high{% elif s[3]|lower == 'medium' %}medium{% else %}low{% endif %}">{{ s[3]|upper }}</span></td>
+                    <td>
+                        <div class="trend {{ s[4]|lower }}">
+                            {% if s[4] == 'UP' %}
+                            <svg class="i" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Increasing
+                            {% elif s[4] == 'DOWN' %}
+                            <svg class="i" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> Decreasing
+                            {% elif s[4] == 'STABLE' %}
+                            <svg class="i" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line></svg> Stable
+                            {% elif s[4] == 'NEW' %}
+                            <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> New
+                            {% else %}
+                            {{ s[4] }}
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td><a href="{{ url_for('sellers.seller', seller_id=s[0]) }}" class="pill" aria-label="Open"><svg class="i go" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No risky sellers identified.</div>
+        {% endif %}
+        </div>
+    </div>
+
+    <div class="glass rise" style="--i:6">
+        <h2 class="sec">Recent Alerts</h2>
+        {% if recent_alerts %}
+            {% for a in recent_alerts %}
+            <div class="al">
+                <div><span>{{ a[1] }}</span><small>{{ a[3].strftime('%Y-%m-%d') if a[3] else 'N/A' }}</small></div>
+                <p>{{ a[2] }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">No recent alerts.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -36,12 +36,19 @@ def search():
 def add_seller():
     if request.method == 'POST':
         seller_id = request.form.get('seller_id')
+        name = request.form.get('name')
         data = {
-            'sellerName': request.form.get('name'),
+            'sellerName': name,
             'sellerCity': request.form.get('city'),
             'sellerState': request.form.get('state'),
         }
         db.collection('sellers').document(seller_id).set(data)
+        
+        # Invalidate/Update the Cache so it appears instantly!
+        from backend.routes.dashboard import SELLER_MAP_CACHE
+        if SELLER_MAP_CACHE is not None:
+            SELLER_MAP_CACHE[seller_id] = name
+            
         return redirect(url_for('dashboard.index'))
     return render_template('add_seller.html')
 
@@ -50,12 +57,19 @@ def add_seller():
 def edit_seller(seller_id):
     doc_ref = db.collection('sellers').document(seller_id)
     if request.method == 'POST':
+        name = request.form.get('name')
         data = {
-            'sellerName': request.form.get('name'),
+            'sellerName': name,
             'sellerCity': request.form.get('city'),
             'sellerState': request.form.get('state'),
         }
         doc_ref.update(data)
+        
+        # Update the Cache
+        from backend.routes.dashboard import SELLER_MAP_CACHE
+        if SELLER_MAP_CACHE is not None:
+            SELLER_MAP_CACHE[seller_id] = name
+            
         return redirect(url_for('sellers.seller', seller_id=seller_id))
     
     doc = doc_ref.get()
@@ -68,6 +82,12 @@ def edit_seller(seller_id):
 @login_required
 def delete_seller(seller_id):
     db.collection('sellers').document(seller_id).delete()
+    
+    # Update the Cache
+    from backend.routes.dashboard import SELLER_MAP_CACHE
+    if SELLER_MAP_CACHE is not None and seller_id in SELLER_MAP_CACHE:
+        del SELLER_MAP_CACHE[seller_id]
+        
     return redirect(url_for('dashboard.index'))
 
 @sellers_bp.route('/seller/<seller_id>')

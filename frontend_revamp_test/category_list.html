@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ risk_level }} Risk Sellers | NexusRisk{% endblock %}
+{% block bodyclass %}{{ risk_level }}{% endblock %}
+{% block actions %}<a class="pill" href="{{ url_for('dashboard.index') }}"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Dashboard</span></a>{% endblock %}
+{% block content %}
+<div class="head rise">
+    <h1>{{ risk_level }} Risk Sellers</h1>
+    {% if results %}<div class="count {{ risk_level }}">{{ results|length }}</div>{% endif %}
+</div>
+{% if results %}
+<div class="list">
+    {% for result in results %}
+    <!-- result: (SellerID, SellerName, WeightedRiskScore, RiskCategory, RiskTrend) -->
+    <a href="{{ url_for('sellers.seller', seller_id=result[0]) }}" class="glass row rise {{ result[3] }}" style="--i:{{ loop.index }}">
+        <div>
+            <b>{{ result[1] }}</b>
+            <div class="meta">
+                <span class="id">{{ result[0] }}</span>
+                <span class="badge {{ result[3] }}">{{ result[3] }}</span>
+                {% if result[4] %}<span>{{ result[4] }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="end">
+            <span class="score {{ result[3] }}" data-n>{{ "%.2f"|format(result[2]) }}</span>
+            <svg class="i go" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty rise">
+    <h3>No sellers found</h3>
+    <a href="{{ url_for('dashboard.index') }}" class="btn sm"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}

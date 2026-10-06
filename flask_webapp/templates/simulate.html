@@ -263,13 +263,13 @@
         <div class="glass-card">
             <form method="POST" action="{{ url_for('simulator.simulate_event') }}">
                 <div class="form-group">
-                    <label>Target Seller</label>
-                    <select name="seller_id" required>
-                        <option value="" disabled selected>Select a seller...</option>
+                    <label>Target Seller (Type to Search)</label>
+                    <input list="seller_options" name="seller_id" id="seller_input" placeholder="Search by Seller ID or Name..." required>
+                    <datalist id="seller_options">
                         {% for seller in sellers %}
-                            <option value="{{ seller.id }}">{{ seller.id }} - {{ seller.name }}</option>
+                            <option value="{{ seller.id }}">{{ seller.name }}</option>
                         {% endfor %}
-                    </select>
+                    </datalist>
                 </div>
 
                 <div class="form-group">

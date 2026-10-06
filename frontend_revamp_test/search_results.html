@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Search | NexusRisk{% endblock %}
+{% block actions %}<a class="pill" href="{{ url_for('dashboard.index') }}"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Dashboard</span></a>{% endblock %}
+{% block content %}
+<div class="head rise">
+    <h1>{{ query }}</h1>
+    {% if results %}<div class="count">{{ results|length }}</div>{% endif %}
+</div>
+{% if results %}
+<div class="list">
+    {% for result in results %}
+    <a href="{{ url_for('sellers.seller', seller_id=result[0]) }}" class="glass row rise" style="--i:{{ loop.index }}">
+        <div>
+            <b>{{ result[1] }}</b>
+            <div class="meta"><span class="id">{{ result[0] }}</span><span>{{ result[2] }}, {{ result[3] }}</span></div>
+        </div>
+        <svg class="i go" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty rise">
+    <h3>No results found</h3>
+    <a href="{{ url_for('dashboard.index') }}" class="btn sm"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}
