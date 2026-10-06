@@ -248,7 +248,7 @@
   <div class="container">
     <nav>
       <div class="brand">Scor<span class="accent-text">er.</span></div>
-      <a href="{{ url_for('index') }}" class="back-link">
+      <a href="{{ url_for('dashboard.index') }}" class="back-link">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         Back to Dashboard
       </a>
@@ -262,7 +262,7 @@
     {% if results %}
       <div class="list-container">
         {% for result in results %}
-        <a href="{{ url_for('seller', seller_id=result[0]) }}" class="card">
+        <a href="{{ url_for('sellers.seller', seller_id=result[0]) }}" class="card">
           <div class="card-left">
             <div class="card-title">{{ result[1] }}</div>
             <div class="card-subtitle">
@@ -281,7 +281,7 @@
       <div class="empty-state">
         <h3>No results found</h3>
         <p>We couldn't find any sellers matching your query.</p>
-        <a href="{{ url_for('index') }}" class="btn">
+        <a href="{{ url_for('dashboard.index') }}" class="btn">
           Back to Dashboard
         </a>
       </div>

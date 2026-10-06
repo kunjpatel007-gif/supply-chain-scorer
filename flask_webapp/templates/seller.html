@@ -436,11 +436,11 @@
 
     <div class="container">
         <nav>
-            <a href="{{ url_for('index') }}" class="brand">
+            <a href="{{ url_for('dashboard.index') }}" class="brand">
                 <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 VendorRisk
             </a>
-            <a href="{{ url_for('index') }}" class="back-link">
+            <a href="{{ url_for('dashboard.index') }}" class="back-link">
                 <svg class="icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Back to Dashboard
             </a>
@@ -461,7 +461,7 @@
                 </div>
             </div>
             <div>
-                <a href="{{ url_for('edit_seller', seller_id=seller_id) }}" style="background: var(--blue); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Edit Seller</a>
+                <a href="{{ url_for('sellers.edit_seller', seller_id=seller_id) }}" style="background: var(--blue); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Edit Seller</a>
             </div>
         </header>
 

@@ -16,16 +16,16 @@
 <body>
     <div class="form-box">
         <h2>Edit Seller: {{ seller_id }}</h2>
-        <form method="POST" action="{{ url_for('edit_seller', seller_id=seller_id) }}">
+        <form method="POST" action="{{ url_for('sellers.edit_seller', seller_id=seller_id) }}">
             <input type="text" name="name" value="{{ seller.get('SellerName', '') }}" required>
             <input type="text" name="city" value="{{ seller.get('SellerCity', '') }}" required>
             <input type="text" name="state" value="{{ seller.get('SellerState', '') }}" required>
             <button type="submit">Update Seller</button>
         </form>
-        <form method="POST" action="{{ url_for('delete_seller', seller_id=seller_id) }}" onsubmit="return confirm('Are you sure?');">
+        <form method="POST" action="{{ url_for('sellers.delete_seller', seller_id=seller_id) }}" onsubmit="return confirm('Are you sure?');">
             <button type="submit" class="delete-btn">Delete Seller</button>
         </form>
-        <a href="{{ url_for('seller', seller_id=seller_id) }}">Cancel</a>
+        <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}">Cancel</a>
     </div>
 </body>
 </html>

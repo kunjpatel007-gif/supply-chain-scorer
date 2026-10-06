@@ -481,7 +481,7 @@
 <body>
 
     <nav>
-        <a href="{{ url_for('index') }}" class="brand">
+        <a href="{{ url_for('dashboard.index') }}" class="brand">
             <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                 <path d="M2 17l10 5 10-5"></path>
@@ -490,9 +490,9 @@
             <span class="brand-font">NexusRisk</span>
         </a>
         <div style="display: flex; gap: 1rem; align-items: center;">
-            <a href="{{ url_for('add_seller') }}" class="nav-tag" style="background: var(--accent-blue); color: white; border: none;">+ Add Seller</a>
+            <a href="{{ url_for('sellers.add_seller') }}" class="nav-tag" style="background: var(--accent-blue); color: white; border: none;">+ Add Seller</a>
             <div class="nav-tag">Main Dashboard</div>
-            <a href="{{ url_for('logout') }}" class="nav-tag" style="background: rgba(255,107,107,0.15); color: var(--danger);">Logout</a>
+            <a href="{{ url_for('auth.logout') }}" class="nav-tag" style="background: rgba(255,107,107,0.15); color: var(--danger);">Logout</a>
         </div>
     </nav>
 
@@ -504,7 +504,7 @@
             </div>
             
             <div class="search-container">
-                <form action="{{ url_for('search') }}" method="POST" class="search-form">
+                <form action="{{ url_for('sellers.search') }}" method="POST" class="search-form">
                     <input type="text" name="seller_id" list="seller-list" class="search-input" placeholder="Search by Seller ID or Name..." required autocomplete="off">
                     <datalist id="seller-list">
                         {% for s in all_sellers %}
@@ -537,7 +537,7 @@
                 <div class="stat-value">{{ total_sellers }}</div>
             </div>
 
-            <a href="{{ url_for('category_list', risk_level='high') }}" class="stat-card high">
+            <a href="{{ url_for('dashboard.category_list', risk_level='high') }}" class="stat-card high">
                 <div class="stat-header">
                     <span class="stat-title">High Risk</span>
                     <div class="stat-icon high">
@@ -551,7 +551,7 @@
                 <div class="stat-value">{{ category_counts.get('High', 0) }}</div>
             </a>
 
-            <a href="{{ url_for('category_list', risk_level='medium') }}" class="stat-card medium">
+            <a href="{{ url_for('dashboard.category_list', risk_level='medium') }}" class="stat-card medium">
                 <div class="stat-header">
                     <span class="stat-title">Medium Risk</span>
                     <div class="stat-icon medium">
@@ -563,7 +563,7 @@
                 <div class="stat-value">{{ category_counts.get('Medium', 0) }}</div>
             </a>
 
-            <a href="{{ url_for('category_list', risk_level='low') }}" class="stat-card low">
+            <a href="{{ url_for('dashboard.category_list', risk_level='low') }}" class="stat-card low">
                 <div class="stat-header">
                     <span class="stat-title">Low Risk</span>
                     <div class="stat-icon low">
@@ -630,7 +630,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('seller', seller_id=s[0]) }}" class="action-link" title="View Details">
+                                    <a href="{{ url_for('sellers.seller', seller_id=s[0]) }}" class="action-link" title="View Details">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M5 12h14"></path>
                                             <path d="M12 5l7 7-7 7"></path>
