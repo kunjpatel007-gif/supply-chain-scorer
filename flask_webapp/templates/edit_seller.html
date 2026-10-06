@@ -1,252 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Seller | NexusRisk</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #0a0a0f;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-blue: #8b5cf6;
-            --danger: #ff6b6b;
-            --warning: #f0a030;
-        }
+{% extends "base.html" %}
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+{% block title %}Modify Vendor | NexusRisk{% endblock %}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow-x: hidden;
-            animation: fadeIn 0.8s ease-out;
-            padding-bottom: 3rem;
-        }
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="margin-bottom: 0.5rem; text-align: center;">Modify Vendor Entity</h1>
+    <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">Updating registry profile for <span class="mono">{{ seller_id }}</span></p>
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: -10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80%;
-            height: 400px;
-            background: radial-gradient(ellipse at center, rgba(240, 160, 48, 0.15) 0%, rgba(10, 10, 15, 0) 70%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1.5rem 3rem;
-            border-bottom: 1px solid var(--card-border);
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(12px);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .brand {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.25rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-main);
-            text-decoration: none;
-        }
-
-        .brand svg {
-            width: 20px;
-            height: 20px;
-            color: var(--accent-blue);
-        }
-
-        .nav-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--card-border);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-
-        .btn-outline:hover {
-            color: var(--text-main);
-            border-color: var(--text-muted);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        main {
-            max-width: 500px;
-            margin: 3rem auto;
-            width: 100%;
-            padding: 0 2rem;
-        }
-
-        .page-header {
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 2.5rem;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-        }
-
-        input {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 0.8rem 1rem;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            transition: all 0.2s;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--warning);
-            background: rgba(240, 160, 48, 0.05);
-            box-shadow: 0 0 0 3px rgba(240, 160, 48, 0.1);
-        }
-
-        .btn-primary {
-            width: 100%;
-            background: var(--warning);
-            color: #111;
-            border: none;
-            padding: 1rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 1rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-primary:hover {
-            background: #f5b041;
-            transform: translateY(-1px);
-        }
-
-        .btn-primary svg {
-            width: 18px;
-            height: 18px;
-        }
-
-    </style>
-</head>
-<body>
-    <nav>
-        <div class="brand">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            NexusRisk
-        </div>
-        <div class="nav-actions">
-            <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}" class="btn-outline">Cancel</a>
-        </div>
-    </nav>
-
-    <main>
-        <div class="page-header">
-            <h1>Edit Seller Profile</h1>
-            <p class="subtitle">Update the basic demographic information for {{ seller.sellerName }}.</p>
-        </div>
-
-        <div class="glass-card">
-            <form method="POST">
+    <div class="panel-chassis">
+        <form method="POST">
+            <div class="form-group">
+                <label>Corporate Name</label>
+                <input type="text" name="name" value="{{ seller.sellerName }}" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                 <div class="form-group">
-                    <label>Company Name</label>
-                    <input type="text" name="name" value="{{ seller.sellerName }}" required autofocus>
+                    <label>City Hub</label>
+                    <input type="text" name="city" value="{{ seller.sellerCity }}" required>
                 </div>
-
                 <div class="form-group">
-                    <label>City</label>
-                    <input type="text" name="city" value="{{ seller.sellerCity }}">
+                    <label>State Code</label>
+                    <input type="text" name="state" value="{{ seller.sellerState }}" required maxlength="2">
                 </div>
-
-                <div class="form-group">
-                    <label>State</label>
-                    <input type="text" name="state" value="{{ seller.sellerState }}">
-                </div>
-
-                <button type="submit" class="btn-primary">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    Save Changes
-                </button>
-            </form>
-        </div>
-    </main>
-</body>
-</html>
+            </div>
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}" class="btn-outline">CANCEL</a>
+                <button type="submit" class="btn-instrument">OVERWRITE RECORD</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

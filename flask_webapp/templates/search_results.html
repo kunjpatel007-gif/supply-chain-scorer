@@ -1,291 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Search Results - Supply Chain Risk</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #0a0a0f;
-      --panel: rgba(255, 255, 255, 0.03);
-      --border: rgba(255, 255, 255, 0.06);
-      --border-hover: rgba(255, 255, 255, 0.15);
-      --text-main: #eef1f6;
-      --text-sec: #8a93a6;
-      --text-muted: #4a5163;
-      
-      --accent: #818cf8;
-      --high-risk: #ff6b6b;
-      --medium-risk: #f0a030;
-      --low-risk: #34d399;
-    }
+{% extends "base.html" %}
 
-    body {
-      margin: 0;
-      background-color: var(--bg);
-      color: var(--text-main);
-      font-family: 'Inter', sans-serif;
-      line-height: 1.5;
-      min-height: 100vh;
-      position: relative;
-      overflow-x: hidden;
-    }
+{% block title %}Search Results | NexusRisk{% endblock %}
 
-    body::before {
-      content: '';
-      position: absolute;
-      top: -200px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 400px;
-      background: radial-gradient(circle, rgba(129, 140, 248, 0.15) 0%, rgba(10, 10, 15, 0) 70%);
-      z-index: -1;
-    }
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <a href="{{ url_for('dashboard.index') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">← Return to Dashboard</a>
+        <h1 style="display: flex; align-items: center; gap: 1rem;">
+            Search Query: <span style="color: var(--accent-amber);">"{{ query }}"</span>
+        </h1>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Showing exact and partial matches from the vendor registry.</p>
+    </div>
+</div>
 
-    h1, h2, h3, h4, h5, h6 {
-      font-family: 'Space Grotesk', sans-serif;
-      margin: 0;
-      font-weight: 600;
-    }
-
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
-
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
-
-    nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 3rem;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
-    }
-
-    .brand {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .back-link {
-      color: var(--text-sec);
-      font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: color 0.2s ease;
-    }
-
-    .back-link:hover {
-      color: var(--text-main);
-    }
-
-    .page-header {
-      margin-bottom: 2.5rem;
-    }
-
-    .page-title {
-      font-size: 2.5rem;
-      letter-spacing: -0.03em;
-      margin-bottom: 0.5rem;
-    }
-
-    .page-subtitle {
-      color: var(--text-sec);
-      font-size: 1.1rem;
-    }
-
-    .accent-text {
-      color: var(--accent);
-    }
-
-    .list-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 3px;
-      background: var(--accent);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    .card:hover {
-      border-color: var(--border-hover);
-      background: rgba(255, 255, 255, 0.05);
-      transform: translateY(-2px);
-    }
-
-    .card:hover::before {
-      opacity: 1;
-    }
-
-    .card-left {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--text-main);
-    }
-
-    .card-subtitle {
-      font-size: 0.85rem;
-      color: var(--text-sec);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .id-badge {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      color: var(--text-muted);
-      font-size: 0.75rem;
-    }
-
-    .card-right {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    .arrow {
-      color: var(--text-muted);
-      transition: color 0.3s ease, transform 0.3s ease;
-    }
-
-    .card:hover .arrow {
-      color: var(--text-main);
-      transform: translateX(4px);
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      background: var(--panel);
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-    }
-
-    .empty-state h3 {
-      margin-bottom: 0.5rem;
-    }
-
-    .empty-state p {
-      color: var(--text-sec);
-      margin-bottom: 1.5rem;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-    }
-
-    .btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--border-hover);
-    }
-
-    .results-count {
-      margin-top: 1.5rem;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <nav>
-      <div class="brand">Scor<span class="accent-text">er.</span></div>
-      <a href="{{ url_for('dashboard.index') }}" class="back-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Back to Dashboard
-      </a>
-    </nav>
-
-    <header class="page-header">
-      <h1 class="page-title">Search Results</h1>
-      <div class="page-subtitle">Showing results for "<span class="accent-text">{{ query }}</span>"</div>
-    </header>
-
-    {% if results %}
-      <div class="list-container">
-        {% for result in results %}
-        <a href="{{ url_for('sellers.seller', seller_id=result[0]) }}" class="card">
-          <div class="card-left">
-            <div class="card-title">{{ result[1] }}</div>
-            <div class="card-subtitle">
-              <span class="id-badge mono">{{ result[0] }}</span>
-              <span>{{ result[2] }}, {{ result[3] }}</span>
-            </div>
-          </div>
-          <div class="card-right">
-            <svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-          </div>
-        </a>
-        {% endfor %}
-      </div>
-      <div class="results-count">Found {{ results|length }} matching sellers</div>
-    {% else %}
-      <div class="empty-state">
-        <h3>No results found</h3>
-        <p>We couldn't find any sellers matching your query.</p>
-        <a href="{{ url_for('dashboard.index') }}" class="btn">
-          Back to Dashboard
-        </a>
-      </div>
-    {% endif %}
-  </div>
-</body>
-</html>
+<div class="panel-chassis">
+    <table>
+        <thead>
+            <tr>
+                <th>Vendor ID</th>
+                <th>Name</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for seller in sellers %}
+            <tr>
+                <td class="mono" style="color: var(--text-main);">{{ seller.id }}</td>
+                <td style="color: var(--text-main);">{{ seller.name }}</td>
+                <td>
+                    <a href="{{ url_for('sellers.seller', seller_id=seller.id) }}" class="btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">INSPECT</a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not sellers %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found matching your query.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

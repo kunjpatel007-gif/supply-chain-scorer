@@ -3,203 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | NexusRisk</title>
+    <title>Auth Gateway | NexusRisk</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0a0a0f;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-blue: #8b5cf6;
-            --danger: #ff6b6b;
+            --surface-canvas: #0d0e11;
+            --surface-subtle: #131519;
+            --surface-card: #17191e;
+            --border-subtle: #2a2d36;
+            --border-muted: #353842;
+            --accent-amber: #d97736;
+            --accent-amber-hover: #e0833a;
+            --accent-glow: 0 0 12px rgba(217, 119, 54, 0.15);
+            --text-main: #f4f4f6;
+            --text-muted: #9da2af;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
             font-family: 'Inter', sans-serif;
+            background: var(--surface-canvas);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            position: relative;
-            overflow-x: hidden;
-            animation: fadeIn 0.8s ease-out;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle at center, rgba(139, 92, 246, 0.15) 0%, rgba(10, 10, 15, 0) 70%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
+        .auth-chassis {
+            background: var(--surface-card);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 16px 32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
             padding: 3rem;
             width: 100%;
-            max-width: 400px;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            text-align: center;
+            max-width: 450px;
         }
 
         .brand {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.75rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            color: var(--text-main);
+            font-family: 'Chivo', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent-amber);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
             margin-bottom: 0.5rem;
         }
 
-        .brand svg {
-            width: 28px;
-            height: 28px;
-            color: var(--accent-blue);
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-
-        label {
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label {
             display: block;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
             margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
         }
-
         input {
             width: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 0.8rem 1rem;
-            color: white;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-muted);
+            color: var(--text-main);
+            padding: 0.875rem 1rem;
+            border-radius: 2px;
             font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
             transition: all 0.2s;
         }
-
         input:focus {
             outline: none;
-            border-color: var(--accent-blue);
-            background: rgba(139, 92, 246, 0.05);
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+            border-color: var(--accent-amber);
+            box-shadow: var(--accent-glow);
         }
 
-        .flash-messages {
-            margin-bottom: 1.5rem;
-        }
-
-        .flash-message {
-            background: rgba(255, 107, 107, 0.1);
-            border: 1px solid rgba(255, 107, 107, 0.3);
-            color: var(--danger);
-            padding: 0.8rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            text-align: center;
-        }
-
-        .btn-primary {
-            width: 100%;
-            background: var(--accent-blue);
-            color: white;
+        .btn-instrument {
+            background: var(--accent-amber);
+            color: #000;
             border: none;
             padding: 1rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            font-family: 'Inter', sans-serif;
+            width: 100%;
+            border-radius: 2px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background 0.2s;
+            margin-top: 1rem;
+        }
+        .btn-instrument:hover {
+            background: var(--accent-amber-hover);
+            box-shadow: var(--accent-glow);
         }
 
-        .btn-primary:hover {
-            background: #7c3aed;
-            transform: translateY(-1px);
+        .flash {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            padding: 1rem;
+            color: var(--text-main);
+            border-radius: 2px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
         }
-
-        .btn-primary svg {
-            width: 18px;
-            height: 18px;
-        }
-
     </style>
 </head>
 <body>
-    <div class="glass-card">
-        <div class="brand">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            NexusRisk
-        </div>
-        <p class="subtitle">Enter your admin credentials to access the dashboard.</p>
-
-        {% if error %}
-        <div class="flash-messages">
-            <div class="flash-message">{{ error }}</div>
-        </div>
-        {% endif %}
-
+    <div class="auth-chassis">
+        <div class="brand">NexusRisk</div>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.875rem;">Terminal Gateway Authorization</p>
+        
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="flash-messages">
                 {% for message in messages %}
-                    <div class="flash-message">{{ message }}</div>
+                    <div class="flash">{{ message }}</div>
                 {% endfor %}
-                </div>
             {% endif %}
         {% endwith %}
 
         <form method="POST">
             <div class="form-group">
-                <input type="password" name="password" placeholder="Admin Password" required autofocus>
+                <label>Operator Clearance ID (Username)</label>
+                <input type="text" name="username" required autofocus autocomplete="off">
             </div>
-
-            <button type="submit" class="btn-primary">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                Sign In
-            </button>
+            <div class="form-group">
+                <label>Security Phrase (Password)</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-instrument">AUTHENTICATE</button>
         </form>
     </div>
 </body>
