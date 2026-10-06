@@ -54,13 +54,33 @@ def get_seller_features(db, seller_id=None):
     if sellers_df.empty:
         return pd.DataFrame()
 
+    def _fetch_all_chunked(coll_name):
+        print(f"Chunking {coll_name} download to prevent 503 Timeouts...")
+        docs = []
+        query = db.collection(coll_name).order_by('__name__').limit(15000)
+        while True:
+            try:
+                batch = list(query.stream(timeout=120))
+            except Exception as e:
+                print(f"Stream exception {e}, retrying...")
+                import time; time.sleep(2)
+                batch = list(query.stream(timeout=300))
+                
+            docs.extend(batch)
+            if len(batch) < 15000:
+                break
+            query = db.collection(coll_name).order_by('__name__').start_after(batch[-1]).limit(15000)
+        print(f"Successfully downloaded {len(docs)} {coll_name} records.")
+        return docs
+
+
     # 2. PO_LINES
     po_lines_ref = db.collection('po_lines')
     if seller_id:
         from google.cloud import firestore
         po_lines_docs = list(po_lines_ref.where(filter=firestore.FieldFilter('sellerId', '==', seller_id)).stream(timeout=3600))
     else:
-        po_lines_docs = list(po_lines_ref.stream(timeout=3600))
+        po_lines_docs = _fetch_all_chunked('po_lines')
         
     po_lines_data = []
     po_ids = set()
@@ -97,7 +117,7 @@ def get_seller_features(db, seller_id=None):
     elif seller_id:
         del_docs = []
     else:
-        del_docs = list(db.collection('deliveries').stream(timeout=3600))
+        del_docs = _fetch_all_chunked('deliveries')
         
     del_data = []
     for doc in del_docs:
@@ -115,7 +135,7 @@ def get_seller_features(db, seller_id=None):
     elif seller_id:
         qi_docs = []
     else:
-        qi_docs = list(db.collection('quality_inspections').stream(timeout=3600))
+        qi_docs = _fetch_all_chunked('quality_inspections')
         
     qi_data = []
     for doc in qi_docs:
@@ -147,7 +167,7 @@ def get_seller_features(db, seller_id=None):
         from google.cloud import firestore
         ph_docs = list(ph_ref.where(filter=firestore.FieldFilter('sellerId', '==', seller_id)).stream(timeout=3600))
     else:
-        ph_docs = list(ph_ref.stream(timeout=3600))
+        ph_docs = _fetch_all_chunked('price_history')
     ph_data = []
     for doc in ph_docs:
         d = doc.to_dict() or {}
@@ -397,23 +417,27 @@ def run_pipeline():
         high_risk_df = df[df['RISKCATEGORY'] == 'High']
         
         print(f"Generating alerts for {len(high_risk_df)} high-risk sellers...")
-        alert_docs = db.collection('alert_log').where('ThresholdCrossedCategory', '==', 'High').where('EvaluationPeriod', '<', period).stream()
+        alert_docs = db.collection('alert_log').where('ThresholdCrossedCategory', '==', 'High').stream()
         prev_high_sellers = set()
         for doc in alert_docs:
             d = doc.to_dict()
-            prev_high_sellers.add(d.get('SellerID'))
+            # Filter in Python to avoid needing a Firestore composite index
+            if d.get('EvaluationPeriod', '') < period:
+                prev_high_sellers.add(d.get('SellerID'))
             
         # Delete existing alerts for this period
-        existing_alerts = db.collection('alert_log').where('EvaluationPeriod', '==', period).where('ThresholdCrossedCategory', '==', 'High').stream()
+        existing_alerts = db.collection('alert_log').where('EvaluationPeriod', '==', period).stream()
         del_batch = db.batch()
         del_count = 0
         for doc in existing_alerts:
-            del_batch.delete(doc.reference)
-            del_count += 1
-            if del_count >= 400:
-                del_batch.commit()
-                del_batch = db.batch()
-                del_count = 0
+            d = doc.to_dict()
+            if d.get('ThresholdCrossedCategory') == 'High':
+                del_batch.delete(doc.reference)
+                del_count += 1
+                if del_count >= 400:
+                    del_batch.commit()
+                    del_batch = db.batch()
+                    del_count = 0
         if del_count > 0:
             del_batch.commit()
         
@@ -464,6 +488,28 @@ def run_pipeline():
         for i, (_, row) in enumerate(top_5.iterrows(), 1):
             print(f"{i}. {row['SELLERID']} - Score: {row['WeightedRiskScore']:.2f} ({row['RISKCATEGORY']}, Trend: {row['RiskTrend']})")
             
+        print("\nSaving Dashboard Metadata Summary...")
+        top_10 = df.nlargest(10, 'WeightedRiskScore')
+        top_risky_list = []
+        for _, row in top_10.iterrows():
+            top_risky_list.append({
+                'SellerID': row['SELLERID'],
+                'WeightedRiskScore': float(row['WeightedRiskScore']),
+                'RiskCategory': row['RISKCATEGORY'],
+                'RiskTrend': row['RiskTrend']
+            })
+            
+        metadata = {
+            'category_counts': {
+                'High': int(dist.get('High', 0)),
+                'Medium': int(dist.get('Medium', 0)),
+                'Low': int(dist.get('Low', 0))
+            },
+            'top_risky': top_risky_list,
+            'last_updated': datetime.datetime.utcnow().isoformat()
+        }
+        db.collection('system_config').document('dashboard_metadata').set(metadata)
+        
         print(f"\nElapsed time: {end_time - start_time:.2f} seconds")
         print("-" * 50)
 

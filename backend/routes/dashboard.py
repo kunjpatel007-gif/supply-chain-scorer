@@ -36,29 +36,28 @@ def index():
     # Sort for the dropdown if needed, though we don't pass all_sellers directly anymore except for backwards compat
     all_sellers = [(sid, name) for sid, name in seller_map.items()]
 
-    risk_scores_ref = db.collection('risk_scores').get()
+    # NO MORE PULLING 3000 DOCUMENTS!
+    # We now fetch exactly ONE tiny metadata document that was pre-aggregated by the pipeline overnight.
+    meta_doc = db.collection('system_config').document('dashboard_metadata').get()
+    
     category_counts = {}
     top_risky = []
     
-    # We now use the O(1) seller_map instead of an O(N^2) nested loop over all_sellers!
-    for r in risk_scores_ref:
-        doc = r.to_dict()
-        cat = doc.get('RiskCategory', 'Unknown')
-        category_counts[cat] = category_counts.get(cat, 0) + 1
+    if meta_doc.exists:
+        meta_data = meta_doc.to_dict()
+        category_counts = meta_data.get('category_counts', {})
+        top_risky_raw = meta_data.get('top_risky', [])
         
-        seller_id = doc.get('SellerID')
-        seller_name = seller_map.get(seller_id, "Unknown")
-        
-        top_risky.append((
-            seller_id,
-            seller_name,
-            doc.get('WeightedRiskScore', 0),
-            cat,
-            doc.get('RiskTrend', 'Stable')
-        ))
-    
-    top_risky.sort(key=lambda x: x[2], reverse=True)
-    top_risky = top_risky[:10]
+        for r in top_risky_raw:
+            sid = r.get('SellerID')
+            sname = seller_map.get(sid, "Unknown")
+            top_risky.append((
+                sid,
+                sname,
+                r.get('WeightedRiskScore', 0),
+                r.get('RiskCategory', 'Unknown'),
+                r.get('RiskTrend', 'Stable')
+            ))
 
     try:
         alerts_ref = db.collection('alert_log').order_by('AlertDate', direction=firestore.Query.DESCENDING).limit(5).get()
