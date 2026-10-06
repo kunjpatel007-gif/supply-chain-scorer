@@ -68,7 +68,41 @@ def simulate_event():
             'freightValue': 50.0
         })
 
-        flash(f"Simulation logged for {seller_id}! NLP Severity: {severity_weight:.2f}")
+        # --- LIVE ML INFERENCE ---
+        # The user requested that we instantly update the ML risk score for this specific seller
+        # so they don't have to wait for the nightly batch Job during their presentation.
+        from pipeline.risk_scoring_pipeline import get_seller_features
+        from backend.ml_service import predict_risk_category
+        import pandas as pd
+        import json
+
+        # 1. Fetch the newly updated behavioral features for just this one seller
+        df = get_seller_features(db, seller_id=seller_id)
+        
+        if not df.empty:
+            # 2. Run the trained XGBoost model in memory
+            risk_category = predict_risk_category(df)
+            
+            # 3. Calculate a basic numerical score based on the NLP severity
+            # (In the real batch pipeline, this uses MinMaxScaler, but for the live demo we simulate the drop)
+            base_score = 75.0
+            penalty = (severity_weight * 30.0) if severity_weight > 0 else 0
+            final_score = max(0, min(100, base_score - penalty))
+
+            # 4. Save the Live Inference result to Firestore
+            risk_data = {
+                'sellerId': seller_id,
+                'compositeScore': final_score,
+                'riskCategory': risk_category,
+                'lastUpdated': datetime.datetime.utcnow().isoformat(),
+                'trend': 'Deteriorating' if severity_weight > 0 else 'Stable'
+            }
+            db.collection('risk_scores').document(seller_id).set(risk_data)
+        
+            flash(f"Simulation logged for {seller_id}! NLP Severity: {severity_weight:.2f}. Live XGBoost Inference predicted category: {risk_category}")
+        else:
+            flash(f"Simulation logged for {seller_id}! NLP Severity: {severity_weight:.2f}. (ML Inference skipped, insufficient history).")
+
         return redirect(url_for('dashboard.index'))
 
     # GET request: Fetch sellers for the dropdown
