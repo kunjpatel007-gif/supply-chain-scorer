@@ -489,7 +489,11 @@
             </svg>
             <span class="brand-font">NexusRisk</span>
         </a>
-        <div class="nav-tag">Main Dashboard</div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="{{ url_for('add_seller') }}" class="nav-tag" style="background: var(--accent-blue); color: white; border: none;">+ Add Seller</a>
+            <div class="nav-tag">Main Dashboard</div>
+            <a href="{{ url_for('logout') }}" class="nav-tag" style="background: rgba(255,107,107,0.15); color: var(--danger);">Logout</a>
+        </div>
     </nav>
 
     <main>
@@ -504,7 +508,7 @@
                     <input type="text" name="seller_id" list="seller-list" class="search-input" placeholder="Search by Seller ID or Name..." required autocomplete="off">
                     <datalist id="seller-list">
                         {% for s in all_sellers %}
-                        <option value="{{ s[0] }}">{{ s[1] }}</option>
+                        <option value="{{ s[0] }}">{{ s[0] }} ({{ s[1][:8] }}…)</option>
                         {% endfor %}
                     </datalist>
                     <button type="submit" class="search-btn">

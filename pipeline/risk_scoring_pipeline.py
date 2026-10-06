@@ -1,4 +1,3 @@
-import oracledb
 import os
 import json
 import time
@@ -7,16 +6,22 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
-from dotenv import load_dotenv
+import sys
+import firebase_admin
+from firebase_admin import credentials, firestore
+from tqdm import tqdm
 
-def get_connection():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
-    load_dotenv(env_path)
-    return oracledb.connect(
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        dsn=os.getenv('DB_DSN')
-    )
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+from project_env import load_env
+
+def get_firestore_client():
+    if not firebase_admin._apps:
+        cred = credentials.ApplicationDefault()
+        firebase_admin.initialize_app(cred, {
+            'projectId': 'dbms-d424e',
+        })
+    return firestore.client()
 
 def load_models(base_dir):
     model_path = os.path.join(base_dir, '..', 'training', 'vendor_risk_model.json')
@@ -32,85 +37,207 @@ def load_models(base_dir):
         
     return booster, label_classes
 
-def get_seller_features(conn):
-    query = """
-    WITH seller_stats AS (
-        SELECT 
-            pl.SellerID,
-            COUNT(DISTINCT pl.PO_ID) as total_orders,
-            COUNT(pl.LineNo) as total_items,
-            COUNT(DISTINCT pl.ProductID) as unique_products,
-            AVG(pl.UnitPriceAtOrder) as avg_price,
-            AVG(pl.FreightValue) as avg_freight
-        FROM PO_LINE pl
-        GROUP BY pl.SellerID
-    ),
-    delivery_stats AS (
-        SELECT
-            pl.SellerID,
-            AVG(d.DelayDays) as avg_delay_days,
-            MAX(d.DelayDays) as max_delay_days,
-            SUM(CASE WHEN d.DelayDays > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(d.DeliveryID), 0) as pct_late_deliveries
-        FROM PO_LINE pl
-        JOIN DELIVERY d ON pl.PO_ID = d.PO_ID
-        GROUP BY pl.SellerID
-    ),
-    quality_stats AS (
-        SELECT
-            pl.SellerID,
-            AVG(qi.ReviewScore) as avg_review_score,
-            SUM(CASE WHEN qi.RejectionFlag = 'Negative' THEN 1 ELSE 0 END) / NULLIF(COUNT(qi.InspectionID), 0) as rejection_rate,
-            SUM(CASE WHEN qi.ReviewScore <= 3 THEN 1 ELSE 0 END) as negative_review_count,
-            NVL(SUM(NVL(qi.VaderSeverityWeight, dt.SeverityWeight)), 0) as defect_penalty
-        FROM PO_LINE pl
-        JOIN QUALITY_INSPECTION qi ON pl.PO_ID = qi.PO_ID
-        LEFT JOIN DEFECT_TYPE dt ON qi.DefectTypeID = dt.DefectTypeID
-        GROUP BY pl.SellerID
-    ),
-    price_stats AS (
-        SELECT 
-            SellerID,
-            STDDEV(UnitPrice) as price_volatility
-        FROM PRICE_HISTORY
-        GROUP BY SellerID
-    )
-    SELECT 
-        s.SellerID,
-        s.SellerName,
-        NVL(ds.avg_delay_days, 0) as avg_delay_days,
-        NVL(ds.max_delay_days, 0) as max_delay_days,
-        NVL(ds.pct_late_deliveries, 0) as pct_late_deliveries,
-        NVL(qs.avg_review_score, 5) as avg_review_score,
-        NVL(qs.rejection_rate, 0) as rejection_rate,
-        NVL(qs.negative_review_count, 0) as negative_review_count,
-        NVL(qs.defect_penalty, 0) as defect_penalty,
-        NVL(ss.avg_price, 0) as avg_price,
-        NVL(ps.price_volatility, 0) as price_volatility,
-        NVL(ss.avg_freight, 0) as avg_freight,
-        NVL(ss.total_orders, 0) as total_orders,
-        NVL(ss.total_items, 0) as total_items,
-        NVL(ss.unique_products, 0) as unique_products
-    FROM SELLER s
-    LEFT JOIN seller_stats ss ON s.SellerID = ss.SellerID
-    LEFT JOIN delivery_stats ds ON s.SellerID = ds.SellerID
-    LEFT JOIN quality_stats qs ON s.SellerID = qs.SellerID
-    LEFT JOIN price_stats ps ON s.SellerID = ps.SellerID
-    """
-    print("Executing query to extract seller features...")
-    df = pd.read_sql(query, conn)
-    return df
+def get_seller_features(db, seller_id=None):
+    if not seller_id:
+        print("Iterating over all sellers one by one to prevent Firestore timeouts over slow connections...")
+        all_dfs = []
+        sellers_docs = list(db.collection('sellers').stream())
+        from tqdm import tqdm
+        for doc in tqdm(sellers_docs, desc="Fetching features per seller"):
+            df = get_seller_features(db, seller_id=doc.id)
+            if not df.empty:
+                all_dfs.append(df)
+        if all_dfs:
+            return pd.concat(all_dfs, ignore_index=True)
+        return pd.DataFrame()
+
+    # SELLERS (Single Seller)
+    sellers_ref = db.collection('sellers')
+    doc = sellers_ref.document(seller_id).get()
+    sellers_docs = [doc] if doc.exists else []
+        
+    sellers_data = []
+    for doc in sellers_docs:
+        d = doc.to_dict() or {}
+        sellers_data.append({
+            'SellerID': d.get('sellerId') or doc.id,
+            'SellerName': d.get('sellerName'),
+        })
+    sellers_df = pd.DataFrame(sellers_data)
+    if sellers_df.empty:
+        return pd.DataFrame()
+
+    # PO_LINES
+    po_lines_ref = db.collection('po_lines')
+    if seller_id:
+        po_lines_docs = po_lines_ref.where('sellerId', '==', seller_id).stream(timeout=3600)
+    else:
+        po_lines_docs = po_lines_ref.stream(timeout=3600)
+        
+    po_lines_data = []
+    for doc in po_lines_docs:
+        d = doc.to_dict() or {}
+        po_lines_data.append({
+            'SellerID': d.get('sellerId'),
+            'PO_ID': d.get('poId'),
+            'LineNo': d.get('lineNo'),
+            'ProductID': d.get('productId'),
+            'UnitPriceAtOrder': d.get('unitPriceAtOrder', 0.0),
+            'FreightValue': d.get('freightValue', 0.0),
+        })
+    po_lines_df = pd.DataFrame(po_lines_data)
+
+    # DELIVERIES
+    del_docs = db.collection('deliveries').stream(timeout=3600)
+    del_data = []
+    for doc in del_docs:
+        d = doc.to_dict() or {}
+        del_data.append({
+            'PO_ID': d.get('poId'),
+            'DeliveryID': d.get('deliveryId') or doc.id,
+            'DelayDays': d.get('delayDays', 0),
+        })
+    del_df = pd.DataFrame(del_data)
+
+    # QUALITY_INSPECTIONS
+    qi_docs = db.collection('quality_inspections').stream(timeout=3600)
+    qi_data = []
+    for doc in qi_docs:
+        d = doc.to_dict() or {}
+        qi_data.append({
+            'PO_ID': d.get('poId'),
+            'InspectionID': d.get('inspectionId') or doc.id,
+            'ReviewScore': d.get('reviewScore', 5),
+            'RejectionFlag': d.get('rejectionFlag', ''),
+            'DefectTypeID': d.get('defectTypeId'),
+            'VaderSeverityWeight': d.get('vaderSeverityWeight'),
+        })
+    qi_df = pd.DataFrame(qi_data)
+
+    # DEFECT_TYPES
+    dt_docs = db.collection('defect_types').stream(timeout=3600)
+    dt_data = []
+    for doc in dt_docs:
+        d = doc.to_dict() or {}
+        dt_data.append({
+            'DefectTypeID': d.get('defectTypeId') or doc.id,
+            'SeverityWeight': d.get('severity', 0),
+        })
+    dt_df = pd.DataFrame(dt_data)
+
+    # PRICE_HISTORY
+    ph_ref = db.collection('price_history')
+    if seller_id:
+        ph_docs = ph_ref.where('sellerId', '==', seller_id).stream(timeout=3600)
+    else:
+        ph_docs = ph_ref.stream(timeout=3600)
+    ph_data = []
+    for doc in ph_docs:
+        d = doc.to_dict() or {}
+        ph_data.append({
+            'SellerID': d.get('sellerId'),
+            'UnitPrice': d.get('unitPrice', 0.0),
+        })
+    ph_df = pd.DataFrame(ph_data)
+
+    print("Computing features via Pandas...")
+    # SELLER STATS
+    if not po_lines_df.empty:
+        seller_stats = po_lines_df.groupby('SellerID').agg(
+            total_orders=('PO_ID', 'nunique'),
+            total_items=('LineNo', 'count'),
+            unique_products=('ProductID', 'nunique'),
+            avg_price=('UnitPriceAtOrder', 'mean'),
+            avg_freight=('FreightValue', 'mean')
+        ).reset_index()
+    else:
+        seller_stats = pd.DataFrame(columns=['SellerID', 'total_orders', 'total_items', 'unique_products', 'avg_price', 'avg_freight'])
+
+    # DELIVERY STATS
+    if not po_lines_df.empty and not del_df.empty:
+        po_del = pd.merge(po_lines_df[['SellerID', 'PO_ID']].drop_duplicates(), del_df, on='PO_ID', how='inner')
+        if not po_del.empty:
+            po_del['is_late'] = (po_del['DelayDays'] > 0).astype(int)
+            del_stats = po_del.groupby('SellerID').agg(
+                avg_delay_days=('DelayDays', 'mean'),
+                max_delay_days=('DelayDays', 'max'),
+                late_count=('is_late', 'sum'),
+                del_count=('DeliveryID', 'count')
+            ).reset_index()
+            del_stats['pct_late_deliveries'] = del_stats['late_count'] / del_stats['del_count'].replace(0, np.nan)
+        else:
+            del_stats = pd.DataFrame(columns=['SellerID', 'avg_delay_days', 'max_delay_days', 'pct_late_deliveries'])
+    else:
+        del_stats = pd.DataFrame(columns=['SellerID', 'avg_delay_days', 'max_delay_days', 'pct_late_deliveries'])
+
+    # QUALITY STATS
+    if not po_lines_df.empty and not qi_df.empty:
+        po_qi = pd.merge(po_lines_df[['SellerID', 'PO_ID']].drop_duplicates(), qi_df, on='PO_ID', how='inner')
+        if not po_qi.empty and not dt_df.empty:
+            po_qi = pd.merge(po_qi, dt_df, on='DefectTypeID', how='left')
+        elif not po_qi.empty:
+            po_qi['SeverityWeight'] = np.nan
+            
+        if not po_qi.empty:
+            po_qi['is_negative_reject'] = (po_qi['RejectionFlag'] == 'Negative').astype(int)
+            po_qi['is_negative_review'] = (po_qi['ReviewScore'] <= 3).astype(int)
+            po_qi['vader_or_severity'] = po_qi['VaderSeverityWeight'].fillna(po_qi['SeverityWeight'] if 'SeverityWeight' in po_qi else 0).fillna(0)
+            
+            qi_stats = po_qi.groupby('SellerID').agg(
+                avg_review_score=('ReviewScore', 'mean'),
+                neg_reject_count=('is_negative_reject', 'sum'),
+                insp_count=('InspectionID', 'count'),
+                negative_review_count=('is_negative_review', 'sum'),
+                defect_penalty=('vader_or_severity', 'sum')
+            ).reset_index()
+            qi_stats['rejection_rate'] = qi_stats['neg_reject_count'] / qi_stats['insp_count'].replace(0, np.nan)
+        else:
+            qi_stats = pd.DataFrame(columns=['SellerID', 'avg_review_score', 'rejection_rate', 'negative_review_count', 'defect_penalty'])
+    else:
+        qi_stats = pd.DataFrame(columns=['SellerID', 'avg_review_score', 'rejection_rate', 'negative_review_count', 'defect_penalty'])
+
+    # PRICE STATS
+    if not ph_df.empty:
+        ph_stats = ph_df.groupby('SellerID').agg(
+            price_volatility=('UnitPrice', 'std')
+        ).reset_index()
+    else:
+        ph_stats = pd.DataFrame(columns=['SellerID', 'price_volatility'])
+
+    # MERGE ALL
+    final_df = sellers_df[['SellerID', 'SellerName']].copy()
+    
+    final_df = pd.merge(final_df, seller_stats, on='SellerID', how='left')
+    final_df = pd.merge(final_df, del_stats[['SellerID', 'avg_delay_days', 'max_delay_days', 'pct_late_deliveries']], on='SellerID', how='left')
+    final_df = pd.merge(final_df, qi_stats[['SellerID', 'avg_review_score', 'rejection_rate', 'negative_review_count', 'defect_penalty']], on='SellerID', how='left')
+    final_df = pd.merge(final_df, ph_stats[['SellerID', 'price_volatility']], on='SellerID', how='left')
+    
+    final_df['avg_delay_days'] = final_df['avg_delay_days'].fillna(0)
+    final_df['max_delay_days'] = final_df['max_delay_days'].fillna(0)
+    final_df['pct_late_deliveries'] = final_df['pct_late_deliveries'].fillna(0)
+    final_df['avg_review_score'] = final_df['avg_review_score'].fillna(5)
+    final_df['rejection_rate'] = final_df['rejection_rate'].fillna(0)
+    final_df['negative_review_count'] = final_df['negative_review_count'].fillna(0)
+    final_df['defect_penalty'] = final_df['defect_penalty'].fillna(0)
+    final_df['avg_price'] = final_df['avg_price'].fillna(0)
+    final_df['price_volatility'] = final_df['price_volatility'].fillna(0)
+    final_df['avg_freight'] = final_df['avg_freight'].fillna(0)
+    final_df['total_orders'] = final_df['total_orders'].fillna(0)
+    final_df['total_items'] = final_df['total_items'].fillna(0)
+    final_df['unique_products'] = final_df['unique_products'].fillna(0)
+    
+    final_df.columns = [c.upper() for c in final_df.columns]
+    return final_df
 
 def compute_subscores(df):
     print("Computing sub-scores using MinMaxScaler...")
     scaler = MinMaxScaler()
     
-    # Fill any remaining NaNs just in case
     df = df.fillna(0)
     
     delay_raw = (df['AVG_DELAY_DAYS'] + df['PCT_LATE_DELIVERIES']).values.reshape(-1, 1)
     df['DelaySubScore'] = scaler.fit_transform(delay_raw) * 100
     
-    # Quality raw now mathematically penalizes sellers based on the total severity of AI defects
     quality_raw = (df['REJECTION_RATE'] + (5 - df['AVG_REVIEW_SCORE']) + (df['DEFECT_PENALTY'] * 0.1)).values.reshape(-1, 1)
     df['QualitySubScore'] = scaler.fit_transform(quality_raw) * 100
     
@@ -131,14 +258,13 @@ def run_pipeline():
         return
         
     try:
-        conn = get_connection()
+        db = get_firestore_client()
     except Exception as e:
         print(f"Database connection failed: {e}")
         return
         
-    cursor = conn.cursor()
     try:
-        df = get_seller_features(conn)
+        df = get_seller_features(db)
         
         if df.empty:
             print("No sellers found to score.")
@@ -150,11 +276,10 @@ def run_pipeline():
             'total_orders', 'total_items', 'unique_products',
             'avg_delay_days', 'max_delay_days', 'pct_late_deliveries',
             'avg_review_score', 'rejection_rate', 'negative_review_count',
-            'avg_price', 'price_volatility', 'avg_freight'
+            'avg_price', 'price_volatility', 'avg_freight', 'defect_penalty',
         ]
         
-        # Ensure column names map correctly depending on oracle pd.read_sql output case
-        orig_cols = {c.lower(): c for c in df.columns}
+        # Lowercase for XGBoost
         df.columns = [c.lower() for c in df.columns]
         
         print("Running XGBoost inference...")
@@ -166,7 +291,6 @@ def run_pipeline():
         else:
             pred_classes = np.round(preds).astype(int)
             
-        # label_classes is a list like ['High', 'Low', 'Medium'] from LabelEncoder
         df['riskcategory'] = [label_classes[int(p)] if int(p) < len(label_classes) else 'Unknown' for p in pred_classes]
         
         # Restore upper case to interact with subscore function consistently
@@ -174,10 +298,12 @@ def run_pipeline():
         df = compute_subscores(df)
         
         print("Fetching RISK_WEIGHT_CONFIG...")
-        cursor.execute("SELECT DelayWeight, QualityWeight, PriceWeight FROM RISK_WEIGHT_CONFIG WHERE ProductCategoryLevel = 'DEFAULT'")
-        weights = cursor.fetchone()
-        if weights:
-            delay_w, qual_w, price_w = [float(w) for w in weights]
+        weight_docs = list(db.collection('risk_weight_config').where('productCategoryLevel', '==', 'DEFAULT').stream())
+        if weight_docs:
+            w = weight_docs[0].to_dict()
+            delay_w = float(w.get('delayWeight', 0.40))
+            qual_w = float(w.get('qualityWeight', 0.35))
+            price_w = float(w.get('priceWeight', 0.25))
         else:
             print("DEFAULT weight config not found. Using fallbacks.")
             delay_w, qual_w, price_w = 0.40, 0.35, 0.25
@@ -191,17 +317,19 @@ def run_pipeline():
         period = datetime.datetime.now().strftime('%Y-%m')
         
         print("Fetching previous risk scores...")
-        prev_scores_query = """
-            SELECT SellerID, WeightedRiskScore 
-            FROM RISK_SCORE
-            WHERE EvaluationPeriod = (
-                SELECT MAX(EvaluationPeriod) 
-                FROM RISK_SCORE rs2 
-                WHERE rs2.SellerID = RISK_SCORE.SellerID AND EvaluationPeriod < :period
-            )
-        """
-        prev_df = pd.read_sql(prev_scores_query, conn, params={"period": period})
-        prev_map = dict(zip(prev_df['SELLERID'], prev_df['WEIGHTEDRISKSCORE']))
+        # Since we cannot easily do a subquery in firestore, fetch all and filter locally or fetch per seller
+        # A simpler way is to query risk_scores where EvaluationPeriod < period
+        rs_docs = db.collection('risk_scores').where('EvaluationPeriod', '<', period).stream()
+        prev_scores = {}
+        for doc in rs_docs:
+            d = doc.to_dict()
+            sid = d.get('SellerID')
+            ep = d.get('EvaluationPeriod')
+            sc = d.get('WeightedRiskScore', 0)
+            if sid not in prev_scores or ep > prev_scores[sid]['period']:
+                prev_scores[sid] = {'period': ep, 'score': sc}
+                
+        prev_map = {sid: data['score'] for sid, data in prev_scores.items()}
         
         trends = []
         for index, row in df.iterrows():
@@ -223,58 +351,64 @@ def run_pipeline():
         df['RiskTrend'] = trends
         df['EvaluationPeriod'] = period
         
-        print(f"Merging {len(df)} records into RISK_SCORE...")
-        merge_sql = """
-            MERGE INTO RISK_SCORE trg
-            USING (SELECT :1 as SellerID, :2 as EvaluationPeriod, :3 as DelaySubScore, :4 as QualitySubScore, :5 as PriceVolatilitySubScore, :6 as WeightedRiskScore, :7 as RiskTrend, :8 as RiskCategory FROM dual) src
-            ON (trg.SellerID = src.SellerID AND trg.EvaluationPeriod = src.EvaluationPeriod)
-            WHEN MATCHED THEN
-                UPDATE SET 
-                    DelaySubScore = src.DelaySubScore,
-                    QualitySubScore = src.QualitySubScore,
-                    PriceVolatilitySubScore = src.PriceVolatilitySubScore,
-                    WeightedRiskScore = src.WeightedRiskScore,
-                    RiskTrend = src.RiskTrend,
-                    RiskCategory = src.RiskCategory
-            WHEN NOT MATCHED THEN
-                INSERT (SellerID, EvaluationPeriod, DelaySubScore, QualitySubScore, PriceVolatilitySubScore, WeightedRiskScore, RiskTrend, RiskCategory)
-                VALUES (src.SellerID, src.EvaluationPeriod, src.DelaySubScore, src.QualitySubScore, src.PriceVolatilitySubScore, src.WeightedRiskScore, src.RiskTrend, src.RiskCategory)
-        """
+        print(f"Merging {len(df)} records into RISK_SCORE using Firestore batches...")
+        batch = db.batch()
+        batch_count = 0
+        total_writes = 0
         
-        insert_data = []
-        for _, row in df.iterrows():
-            insert_data.append((
-                row['SELLERID'], row['EvaluationPeriod'], 
-                float(row['DelaySubScore']), float(row['QualitySubScore']), 
-                float(row['PriceVolatilitySubScore']), float(row['WeightedRiskScore']), 
-                row['RiskTrend'], row['RISKCATEGORY']
-            ))
+        for _, row in tqdm(df.iterrows(), total=len(df), desc="Writing Risk Scores"):
+            doc_id = f"{row['SELLERID']}_{period}"
+            doc_ref = db.collection('risk_scores').document(doc_id)
             
-        cursor.executemany(merge_sql, insert_data)
-        conn.commit()
-        
-        # Only generate alerts for sellers whose XGBoost prediction is actually 'High'
+            data = {
+                'SellerID': row['SELLERID'],
+                'EvaluationPeriod': period,
+                'DelaySubScore': float(row['DelaySubScore']),
+                'QualitySubScore': float(row['QualitySubScore']),
+                'PriceVolatilitySubScore': float(row['PriceVolatilitySubScore']),
+                'WeightedRiskScore': float(row['WeightedRiskScore']),
+                'RiskTrend': row['RiskTrend'],
+                'RiskCategory': row['RISKCATEGORY']
+            }
+            batch.set(doc_ref, data, merge=True)
+            batch_count += 1
+            
+            if batch_count >= 400:
+                batch.commit()
+                batch = db.batch()
+                batch_count = 0
+                
+        if batch_count > 0:
+            batch.commit()
+            
         high_risk_df = df[df['RISKCATEGORY'] == 'High']
         
         print(f"Generating alerts for {len(high_risk_df)} high-risk sellers...")
-        alert_sql = """
-            INSERT INTO ALERT_LOG (AlertID, SellerID, EvaluationPeriod, AlertDate, ThresholdCrossedCategory, AlertMessage, AlertStatus, EscalationLevel)
-            VALUES (ALERT_SEQ.NEXTVAL, :1, :2, CURRENT_TIMESTAMP, :3, :4, 'Open', :5)
-        """
+        alert_docs = db.collection('alert_log').where('ThresholdCrossedCategory', '==', 'High').where('EvaluationPeriod', '<', period).stream()
+        prev_high_sellers = set()
+        for doc in alert_docs:
+            d = doc.to_dict()
+            prev_high_sellers.add(d.get('SellerID'))
+            
+        # Delete existing alerts for this period
+        existing_alerts = db.collection('alert_log').where('EvaluationPeriod', '==', period).where('ThresholdCrossedCategory', '==', 'High').stream()
+        del_batch = db.batch()
+        del_count = 0
+        for doc in existing_alerts:
+            del_batch.delete(doc.reference)
+            del_count += 1
+            if del_count >= 400:
+                del_batch.commit()
+                del_batch = db.batch()
+                del_count = 0
+        if del_count > 0:
+            del_batch.commit()
         
-        alert_prev_query = """
-            SELECT DISTINCT SellerID 
-            FROM ALERT_LOG 
-            WHERE ThresholdCrossedCategory = 'High' AND EvaluationPeriod = (
-                SELECT MAX(EvaluationPeriod) 
-                FROM ALERT_LOG a2 
-                WHERE a2.SellerID = ALERT_LOG.SellerID AND EvaluationPeriod < :period
-            )
-        """
-        prev_high_sellers = [r[0] for r in cursor.execute(alert_prev_query, period=period).fetchall()]
+        alert_batch = db.batch()
+        alert_count = 0
         
-        alert_data = []
-        for _, row in high_risk_df.iterrows():
+        alert_data_len = len(high_risk_df)
+        for _, row in tqdm(high_risk_df.iterrows(), total=alert_data_len, desc="Writing Alerts"):
             sid = row['SELLERID']
             sname = row['SELLERNAME']
             score = row['WeightedRiskScore']
@@ -282,13 +416,25 @@ def run_pipeline():
             msg = f"Seller {sname if pd.notna(sname) else sid} scored {score:.2f} ({category} Risk) for period {period}"
             esc = 2 if sid in prev_high_sellers else 1
             
-            alert_data.append((
-                sid, period, category, msg, esc
-            ))
-            
-        if alert_data:
-            cursor.executemany(alert_sql, alert_data)
-            conn.commit()
+            doc_ref = db.collection('alert_log').document()
+            alert_data = {
+                'SellerID': sid,
+                'EvaluationPeriod': period,
+                'AlertDate': firestore.SERVER_TIMESTAMP,
+                'ThresholdCrossedCategory': category,
+                'AlertMessage': msg,
+                'AlertStatus': 'Open',
+                'EscalationLevel': esc
+            }
+            alert_batch.set(doc_ref, alert_data)
+            alert_count += 1
+            if alert_count >= 400:
+                alert_batch.commit()
+                alert_batch = db.batch()
+                alert_count = 0
+                
+        if alert_count > 0:
+            alert_batch.commit()
             
         end_time = time.time()
         dist = df['RISKCATEGORY'].value_counts().to_dict()
@@ -298,7 +444,7 @@ def run_pipeline():
         print("-" * 50)
         print(f"Total sellers scored: {len(df)}")
         print(f"Distribution: {dist.get('Low', 0)} Low, {dist.get('Medium', 0)} Medium, {dist.get('High', 0)} High")
-        print(f"New alerts generated: {len(alert_data)}")
+        print(f"New alerts generated: {alert_data_len}")
         
         print("\nTop 5 Highest Risk Sellers:")
         top_5 = df.nlargest(5, 'WeightedRiskScore')
@@ -312,10 +458,6 @@ def run_pipeline():
         print(f"Pipeline error: {e}")
         import traceback
         traceback.print_exc()
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
 
 if __name__ == '__main__':
     run_pipeline()

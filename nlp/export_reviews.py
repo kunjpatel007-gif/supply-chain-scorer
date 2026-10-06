@@ -1,11 +1,15 @@
 import oracledb
 import os
 import pandas as pd
-from dotenv import load_dotenv
+import sys
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+from project_env import load_env
+
 
 def get_connection():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
-    load_dotenv(env_path)
+    load_env()
     return oracledb.connect(
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),

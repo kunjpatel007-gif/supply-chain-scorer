@@ -1,6 +1,7 @@
-oracledb
-pandas
-xgboost
-requests
-python-dotenv
-scikit-learn
+flask==3.0.3
+xgboost==2.0.3
+pandas==2.2.2
+numpy==1.26.4
+firebase-admin==6.5.0
+gunicorn==22.0.0
+python-dotenv==1.0.1

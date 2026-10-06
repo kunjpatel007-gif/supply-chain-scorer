@@ -25,12 +25,26 @@ These scores are aggregated into a `WeightedRiskScore` and each seller is assign
    pip install -r requirements.txt
    ```
 
-2. **Launch the Desktop App**
-   Navigate to `desktop_app/` and run the main application:
+2. **Configure the database**
+   Create a `.env` file in the project root (or launch the desktop app once to generate it):
+   ```
+   DB_USER=your_user
+   DB_PASSWORD=your_password
+   DB_DSN=localhost:1521/XEPDB1
+   ```
+
+3. **Load data and score**
    ```bash
+   python etl/load_data.py --replace
+   python pipeline/risk_scoring_pipeline.py
+   ```
+
+4. **Launch the Desktop App**
+   ```bash
+   cd desktop_app
    python main.py
    ```
-   The application will ask for your Oracle Database credentials on startup. It will also bootstrap the required database schema automatically if it detects an empty database.
+   The application will ask for your Oracle Database credentials on startup if `.env` is missing. It bootstraps the schema on an empty database and runs optional upgrades (`db/upgrade_existing_schema.sql`) when tables already exist.
 
 ## Distribution
 

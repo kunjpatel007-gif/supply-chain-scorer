@@ -1,10 +1,13 @@
 import os
 import pandas as pd
 import oracledb
-from dotenv import load_dotenv
+import sys
 
-# Load Environment
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+from project_env import load_env
+
+load_env()
 
 def get_connection():
     return oracledb.connect(

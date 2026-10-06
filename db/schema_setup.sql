@@ -26,6 +26,7 @@ CREATE SEQUENCE ACTION_SEQ START WITH 1 INCREMENT BY 1;
 /
 CREATE TABLE SELLER (
     SellerID VARCHAR2(64) PRIMARY KEY,
+    SellerName VARCHAR2(200),
     SellerZipCodePrefix VARCHAR2(10),
     SellerCity VARCHAR2(100),
     SellerState VARCHAR2(5)
@@ -109,7 +110,8 @@ CREATE TABLE QUALITY_INSPECTION (
     ReviewAnswerTimestamp TIMESTAMP,
     ReviewCommentTitle VARCHAR2(500),
     ReviewCommentMessage CLOB,
-    DefectTypeID NUMBER REFERENCES DEFECT_TYPE(DefectTypeID)
+    DefectTypeID NUMBER REFERENCES DEFECT_TYPE(DefectTypeID),
+    VaderSeverityWeight NUMBER(5,2)
 );
 
 -- Weak entity, owner = SELLER

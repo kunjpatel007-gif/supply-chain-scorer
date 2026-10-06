@@ -1,12 +1,16 @@
+import argparse
 import pandas as pd
 import numpy as np
 import oracledb
 import os
-from dotenv import load_dotenv
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = PROJECT_ROOT
-load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
+sys.path.insert(0, PROJECT_ROOT)
+from project_env import load_env
+
+load_env()
 
 def get_connection():
     return oracledb.connect(
@@ -15,15 +19,52 @@ def get_connection():
         dsn=os.getenv('DB_DSN')
     )
 
+CLEAR_TABLES = [
+    'CORRECTIVE_ACTION',
+    'ALERT_LOG',
+    'RISK_SCORE',
+    'QUALITY_INSPECTION',
+    'DELIVERY',
+    'PO_LINE',
+    'PRICE_HISTORY',
+    'PURCHASE_ORDER',
+    'PRODUCT',
+    'SELLER',
+]
+
+
+def clear_loaded_data(cursor):
+    print("Clearing existing transactional data (--replace)...")
+    for table in CLEAR_TABLES:
+        cursor.execute(f'DELETE FROM {table}')
+    print("Clear complete.")
+
+
 def main():
+    parser = argparse.ArgumentParser(description='Load Olist CSV data into Oracle.')
+    parser.add_argument(
+        '--replace',
+        action='store_true',
+        help='Delete existing loaded rows before insert (keeps DEFECT_TYPE and RISK_WEIGHT_CONFIG).',
+    )
+    args = parser.parse_args()
+
     try:
         conn = get_connection()
-        # Ensure we set cursor.executemany batch size
         cursor = conn.cursor()
         print("Connected to Oracle Database.")
     except Exception as e:
         print(f"Failed to connect to DB: {e}")
         return
+
+    if args.replace:
+        try:
+            clear_loaded_data(cursor)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Failed to clear tables: {e}")
+            return
 
     # Load CSVs
     print("Loading CSV files...")
@@ -34,8 +75,18 @@ def main():
     reviews_df = pd.read_csv(os.path.join(DATA_DIR, 'olist_order_reviews_dataset.csv'))
     
     # Process Data
-    # 1. SELLER
-    seller_data = sellers_df[['seller_id', 'seller_zip_code_prefix', 'seller_city', 'seller_state']].copy()
+    # 1. SELLER (display name from city/state; Olist has no separate seller name)
+    seller_data = sellers_df[
+        ['seller_id', 'seller_zip_code_prefix', 'seller_city', 'seller_state']
+    ].copy()
+    seller_data['seller_name'] = (
+        seller_data['seller_city'].fillna('Unknown').astype(str)
+        + ', '
+        + seller_data['seller_state'].fillna('??').astype(str)
+    )
+    seller_data = seller_data[
+        ['seller_id', 'seller_name', 'seller_zip_code_prefix', 'seller_city', 'seller_state']
+    ]
     seller_data = seller_data.astype(object).where(pd.notnull(seller_data), None)
     seller_records = [tuple(x) for x in seller_data.to_numpy()]
 
@@ -123,7 +174,11 @@ def main():
     
     try:
         # DB Insert commands
-        insert_records('SELLER', 'INSERT INTO SELLER (SellerID, SellerZipCodePrefix, SellerCity, SellerState) VALUES (:1, :2, :3, :4)', seller_records)
+        insert_records(
+            'SELLER',
+            'INSERT INTO SELLER (SellerID, SellerName, SellerZipCodePrefix, SellerCity, SellerState) VALUES (:1, :2, :3, :4, :5)',
+            seller_records,
+        )
         insert_records('PRODUCT', 'INSERT INTO PRODUCT (ProductID, ProductCategoryName) VALUES (:1, :2)', product_records)
         insert_records('PURCHASE_ORDER', 'INSERT INTO PURCHASE_ORDER (PO_ID, OrderDate, ExpectedDeliveryDate, OrderStatus) VALUES (:1, :2, :3, :4)', po_records)
         insert_records('PO_LINE', 'INSERT INTO PO_LINE (PO_ID, LineNo, ProductID, SellerID, UnitPriceAtOrder, FreightValue, ShippingLimitDate) VALUES (:1, :2, :3, :4, :5, :6, :7)', po_line_records)

@@ -1,8 +1,25 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+venv/
 .env
-desktop_app/build/
-desktop_app/dist/
-desktop_app/*.spec
-desktop_app/SupplyChainScorer.exe
+
+# Old Tkinter / PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Installers and Binaries
+*.exe
+*.msi
+*.zip
+
+# Raw Data
+*.csv
+
+# Temporary files
+KUNJUPLOADED/
+pdf_preview/
+backup/
+cookies.txt

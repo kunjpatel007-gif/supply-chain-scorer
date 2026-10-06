@@ -446,17 +446,22 @@
             </a>
         </nav>
 
-        <header>
-            <h1>{{ seller_info[2] if seller_info else 'Unknown Seller' }}</h1>
-            <div class="seller-meta">
-                <span>
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    ID: {{ seller_id }}
-                </span>
-                <span>
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    {{ seller_info[0] if seller_info else 'Unknown' }}, {{ seller_info[1] if seller_info else 'Unknown' }}
-                </span>
+        <header style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1>{{ seller_info[2] if seller_info else 'Unknown Seller' }}</h1>
+                <div class="seller-meta">
+                    <span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        ID: {{ seller_id }}
+                    </span>
+                    <span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        {{ seller_info[0] if seller_info else 'Unknown' }}, {{ seller_info[1] if seller_info else 'Unknown' }}
+                    </span>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('edit_seller', seller_id=seller_id) }}" style="background: var(--blue); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Edit Seller</a>
             </div>
         </header>
 

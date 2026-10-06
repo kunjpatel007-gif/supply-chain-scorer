@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.git/
+.gitignore
+firebase-service-account.json
+flask_webapp/build/
+flask_webapp/dist/
+flask_webapp/SupplyChainScorer.exe
+flask_webapp/*.spec
+etl/
+nlp/
+scratch/
+*.csv
+*.md
