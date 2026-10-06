@@ -13,3 +13,6 @@ nlp/
 scratch/
 *.csv
 *.md
+backup/
+db/
+scratch_pipeline.py

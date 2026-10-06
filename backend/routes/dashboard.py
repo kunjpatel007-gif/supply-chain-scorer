@@ -39,17 +39,15 @@ def index():
     risk_scores_ref = db.collection('risk_scores').get()
     category_counts = {}
     top_risky = []
+    
+    # We now use the O(1) seller_map instead of an O(N^2) nested loop over all_sellers!
     for r in risk_scores_ref:
         doc = r.to_dict()
         cat = doc.get('RiskCategory', 'Unknown')
         category_counts[cat] = category_counts.get(cat, 0) + 1
         
         seller_id = doc.get('SellerID')
-        seller_name = "Unknown"
-        for s in all_sellers:
-            if s[0] == seller_id:
-                seller_name = s[1]
-                break
+        seller_name = seller_map.get(seller_id, "Unknown")
         
         top_risky.append((
             seller_id,
@@ -70,11 +68,7 @@ def index():
     for a in alerts_ref:
         doc = a.to_dict()
         seller_id = doc.get('SellerID')
-        seller_name = "Unknown"
-        for s in all_sellers:
-            if s[0] == seller_id:
-                seller_name = s[1]
-                break
+        seller_name = seller_map.get(seller_id, "Unknown")
         
         recent_alerts.append((
             seller_id,
