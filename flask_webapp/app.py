@@ -9,10 +9,12 @@ def create_app():
     from backend.routes.auth import auth_bp
     from backend.routes.dashboard import dashboard_bp
     from backend.routes.sellers import sellers_bp
+    from backend.routes.simulator import simulator_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(sellers_bp)
+    app.register_blueprint(simulator_bp)
 
     return app
 

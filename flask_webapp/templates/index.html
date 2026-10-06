@@ -490,6 +490,10 @@
             <span class="brand-font">NexusRisk</span>
         </a>
         <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="{{ url_for('simulator.simulate_event') }}" class="nav-tag" style="background: rgba(52, 211, 153, 0.15); color: var(--safe); border: 1px solid rgba(52, 211, 153, 0.3);">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Simulate Event
+            </a>
             <a href="{{ url_for('sellers.add_seller') }}" class="nav-tag" style="background: var(--accent-blue); color: white; border: none;">+ Add Seller</a>
             <div class="nav-tag">Main Dashboard</div>
             <a href="{{ url_for('auth.logout') }}" class="nav-tag" style="background: rgba(255,107,107,0.15); color: var(--danger);">Logout</a>
