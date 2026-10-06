@@ -2,30 +2,204 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Edit Seller</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Seller | NexusRisk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #f3f4f6; padding: 2rem; }
-        .form-box { max-width: 400px; margin: 0 auto; background: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); }
-        input { width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #333; background: #111; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 0.8rem; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 1rem; }
-        .delete-btn { background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.5); }
-        a { color: #9ca3af; text-decoration: none; display: block; text-align: center; }
+        :root {
+            --bg-color: #0a0a0f;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-blue: #8b5cf6;
+            --danger: #ff6b6b;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.05), transparent 25%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .brand svg {
+            width: 24px;
+            height: 24px;
+            color: var(--accent-blue);
+        }
+
+        h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .form-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: rgba(139, 92, 246, 0.05);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            background: #7c3aed;
+            transform: translateY(-1px);
+        }
+
+        button.delete-btn {
+            background: rgba(255, 107, 107, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            margin-top: 0.5rem;
+        }
+
+        button.delete-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: rgba(255, 107, 107, 0.4);
+        }
+
+        .actions {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .cancel-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .cancel-link:hover {
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <div class="form-box">
-        <h2>Edit Seller: {{ seller_id }}</h2>
-        <form method="POST" action="{{ url_for('sellers.edit_seller', seller_id=seller_id) }}">
-            <input type="text" name="name" value="{{ seller.get('SellerName', '') }}" required>
-            <input type="text" name="city" value="{{ seller.get('SellerCity', '') }}" required>
-            <input type="text" name="state" value="{{ seller.get('SellerState', '') }}" required>
-            <button type="submit">Update Seller</button>
-        </form>
-        <form method="POST" action="{{ url_for('sellers.delete_seller', seller_id=seller_id) }}" onsubmit="return confirm('Are you sure?');">
-            <button type="submit" class="delete-btn">Delete Seller</button>
-        </form>
-        <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}">Cancel</a>
+    <div class="container">
+        <div class="header">
+            <a href="{{ url_for('dashboard.index') }}" class="brand">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                NexusRisk
+            </a>
+            <h2>Edit Seller</h2>
+            <p class="subtitle">ID: {{ seller_id }}</p>
+        </div>
+
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('sellers.edit_seller', seller_id=seller_id) }}">
+                <div class="form-group">
+                    <label>Company Name</label>
+                    <input type="text" name="name" value="{{ seller.get('SellerName', '') }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>City</label>
+                    <input type="text" name="city" value="{{ seller.get('SellerCity', '') }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>State / Region</label>
+                    <input type="text" name="state" value="{{ seller.get('SellerState', '') }}" required>
+                </div>
+
+                <button type="submit">Update Vendor Details</button>
+            </form>
+            
+            <form method="POST" action="{{ url_for('sellers.delete_seller', seller_id=seller_id) }}" onsubmit="return confirm('Are you sure you want to completely remove this seller?');">
+                <button type="submit" class="delete-btn">Delete Vendor</button>
+            </form>
+            
+            <div class="actions">
+                <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}" class="cancel-link">← Cancel and Go Back</a>
+            </div>
+        </div>
     </div>
 </body>
 </html>

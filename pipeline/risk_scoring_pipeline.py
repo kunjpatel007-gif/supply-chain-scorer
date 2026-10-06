@@ -7,21 +7,13 @@ import numpy as np
 import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
 import sys
-import firebase_admin
-from firebase_admin import credentials, firestore
 from tqdm import tqdm
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 from project_env import load_env
 
-def get_firestore_client():
-    if not firebase_admin._apps:
-        cred = credentials.ApplicationDefault()
-        firebase_admin.initialize_app(cred, {
-            'projectId': 'dbms-d424e',
-        })
-    return firestore.client()
+from backend.firebase_client import db
 
 def load_models(base_dir):
     model_path = os.path.join(base_dir, '..', 'training', 'vendor_risk_model.json')
@@ -280,12 +272,6 @@ def run_pipeline():
         booster, label_classes = load_models(base_dir)
     except Exception as e:
         print(f"Error loading models: {e}")
-        return
-        
-    try:
-        db = get_firestore_client()
-    except Exception as e:
-        print(f"Database connection failed: {e}")
         return
         
     try:
