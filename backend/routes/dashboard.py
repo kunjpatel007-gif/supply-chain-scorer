@@ -86,15 +86,6 @@ def index():
         all_sellers=all_sellers,
     )
 
-@dashboard_bp.route('/run-ml-pipeline-admin')
-@login_required
-def trigger_pipeline():
-    from pipeline.risk_scoring_pipeline import run_pipeline
-    import threading
-    # Run in background so it doesn't block the web request
-    threading.Thread(target=run_pipeline).start()
-    return "Pipeline started in the background! Check the dashboard in a few minutes.", 200
-
 @dashboard_bp.route('/category/<risk_level>')
 @login_required
 def category_list(risk_level):

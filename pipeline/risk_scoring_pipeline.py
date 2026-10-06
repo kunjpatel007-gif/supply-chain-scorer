@@ -38,23 +38,18 @@ def load_models(base_dir):
     return booster, label_classes
 
 def get_seller_features(db, seller_id=None):
-    if not seller_id:
-        print("Iterating over all sellers one by one to prevent Firestore timeouts over slow connections...")
-        all_dfs = []
-        sellers_docs = list(db.collection('sellers').stream())
-        from tqdm import tqdm
-        for doc in tqdm(sellers_docs, desc="Fetching features per seller"):
-            df = get_seller_features(db, seller_id=doc.id)
-            if not df.empty:
-                all_dfs.append(df)
-        if all_dfs:
-            return pd.concat(all_dfs, ignore_index=True)
-        return pd.DataFrame()
+    import pandas as pd
+    import numpy as np
 
-    # SELLERS (Single Seller)
+    print(f"Fetching data from Firestore for {'Seller: ' + seller_id if seller_id else 'ALL Sellers'}...")
+
+    # 1. SELLERS
     sellers_ref = db.collection('sellers')
-    doc = sellers_ref.document(seller_id).get()
-    sellers_docs = [doc] if doc.exists else []
+    if seller_id:
+        doc = sellers_ref.document(seller_id).get()
+        sellers_docs = [doc] if doc.exists else []
+    else:
+        sellers_docs = list(sellers_ref.stream(timeout=3600))
         
     sellers_data = []
     for doc in sellers_docs:
@@ -67,19 +62,24 @@ def get_seller_features(db, seller_id=None):
     if sellers_df.empty:
         return pd.DataFrame()
 
-    # PO_LINES
+    # 2. PO_LINES
     po_lines_ref = db.collection('po_lines')
     if seller_id:
-        po_lines_docs = po_lines_ref.where('sellerId', '==', seller_id).stream(timeout=3600)
+        from google.cloud import firestore
+        po_lines_docs = list(po_lines_ref.where(filter=firestore.FieldFilter('sellerId', '==', seller_id)).stream(timeout=3600))
     else:
-        po_lines_docs = po_lines_ref.stream(timeout=3600)
+        po_lines_docs = list(po_lines_ref.stream(timeout=3600))
         
     po_lines_data = []
+    po_ids = set()
     for doc in po_lines_docs:
         d = doc.to_dict() or {}
+        po_id = d.get('poId')
+        if po_id:
+            po_ids.add(po_id)
         po_lines_data.append({
             'SellerID': d.get('sellerId'),
-            'PO_ID': d.get('poId'),
+            'PO_ID': po_id,
             'LineNo': d.get('lineNo'),
             'ProductID': d.get('productId'),
             'UnitPriceAtOrder': d.get('unitPriceAtOrder', 0.0),
@@ -87,8 +87,26 @@ def get_seller_features(db, seller_id=None):
         })
     po_lines_df = pd.DataFrame(po_lines_data)
 
-    # DELIVERIES
-    del_docs = db.collection('deliveries').stream(timeout=3600)
+    # Helper function to fetch in batches of 30 (Firestore IN limit)
+    def fetch_by_po_ids(collection_name, po_ids_list):
+        from google.cloud import firestore
+        docs = []
+        for i in range(0, len(po_ids_list), 30):
+            batch_ids = po_ids_list[i:i+30]
+            if batch_ids:
+                docs.extend(db.collection(collection_name).where(filter=firestore.FieldFilter('poId', 'in', batch_ids)).stream(timeout=3600))
+        return docs
+
+    po_ids_list = list(po_ids)
+
+    # 3. DELIVERIES
+    if seller_id and po_ids_list:
+        del_docs = fetch_by_po_ids('deliveries', po_ids_list)
+    elif seller_id:
+        del_docs = []
+    else:
+        del_docs = list(db.collection('deliveries').stream(timeout=3600))
+        
     del_data = []
     for doc in del_docs:
         d = doc.to_dict() or {}
@@ -99,8 +117,14 @@ def get_seller_features(db, seller_id=None):
         })
     del_df = pd.DataFrame(del_data)
 
-    # QUALITY_INSPECTIONS
-    qi_docs = db.collection('quality_inspections').stream(timeout=3600)
+    # 4. QUALITY_INSPECTIONS
+    if seller_id and po_ids_list:
+        qi_docs = fetch_by_po_ids('quality_inspections', po_ids_list)
+    elif seller_id:
+        qi_docs = []
+    else:
+        qi_docs = list(db.collection('quality_inspections').stream(timeout=3600))
+        
     qi_data = []
     for doc in qi_docs:
         d = doc.to_dict() or {}
@@ -114,8 +138,8 @@ def get_seller_features(db, seller_id=None):
         })
     qi_df = pd.DataFrame(qi_data)
 
-    # DEFECT_TYPES
-    dt_docs = db.collection('defect_types').stream(timeout=3600)
+    # 5. DEFECT_TYPES
+    dt_docs = list(db.collection('defect_types').stream(timeout=3600))
     dt_data = []
     for doc in dt_docs:
         d = doc.to_dict() or {}
@@ -125,12 +149,13 @@ def get_seller_features(db, seller_id=None):
         })
     dt_df = pd.DataFrame(dt_data)
 
-    # PRICE_HISTORY
+    # 6. PRICE_HISTORY
     ph_ref = db.collection('price_history')
     if seller_id:
-        ph_docs = ph_ref.where('sellerId', '==', seller_id).stream(timeout=3600)
+        from google.cloud import firestore
+        ph_docs = list(ph_ref.where(filter=firestore.FieldFilter('sellerId', '==', seller_id)).stream(timeout=3600))
     else:
-        ph_docs = ph_ref.stream(timeout=3600)
+        ph_docs = list(ph_ref.stream(timeout=3600))
     ph_data = []
     for doc in ph_docs:
         d = doc.to_dict() or {}
