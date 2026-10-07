@@ -34,8 +34,9 @@
 <a href="{{ url_for('sellers.edit_seller', seller_id=seller_id) }}" class="pill on"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg><span>Edit</span></a>
 {% endblock %}
 {% block content %}
-{% set latest_score = history[0][1] if history else 0 %}
-{% set score_color = "var(--coral)" if latest_score > 70 else ("var(--amber)" if latest_score > 30 else "var(--emerald)") %}
+{% set latest_score = history[0][1]|float if history else 0 %}
+{% set latest_cat = history[0][2]|lower if history else 'low' %}
+{% set score_color = "var(--coral)" if latest_cat == 'high' else ("var(--amber)" if latest_cat == 'medium' else "var(--emerald)") %}
 <div class="head rise">
     <div>
         <h1>{{ seller_info[2] if seller_info else 'Unknown Seller' }}</h1>
