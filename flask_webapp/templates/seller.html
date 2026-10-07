@@ -10,7 +10,7 @@
 .active-low{background:color-mix(in srgb,var(--lo) 18%,transparent);color:var(--lo)!important}
 .active-medium{background:color-mix(in srgb,var(--md) 18%,transparent);color:var(--md)!important}
 .active-high{background:color-mix(in srgb,var(--hi) 18%,transparent);color:var(--hi)!important}
-.gw{display:flex;align-items:center;gap:1.5rem}
+.gw{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
 :root{--coral:var(--hi);--amber:var(--md);--emerald:var(--lo)}
 .gauge{--s:0%;position:relative;flex:none;width:130px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gc,var(--acc)) var(--s),rgba(255,255,255,.07) 0);animation:fill 1.5s .3s cubic-bezier(.2,.7,.2,1) forwards}
 .gauge::before{content:"";position:absolute;inset:9px;border-radius:50%;background:#0d1017}

@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | NexusRisk{% endblock %}
 {% block head %}<style>
-.search{display:flex;align-items:center;gap:.4rem;width:260px;padding:.3rem .3rem .3rem 1.1rem;border:1px solid var(--line);border-radius:999px;background:var(--glass);transition:width .45s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
-.search:focus-within{width:340px;border-color:var(--acc);box-shadow:0 0 0 4px rgba(143,180,255,.1)}
+.search{display:flex;align-items:center;gap:.4rem;width:100%;max-width:260px;padding:.3rem .3rem .3rem 1.1rem;border:1px solid var(--line);border-radius:999px;background:var(--glass);transition:max-width .45s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
+.search:focus-within{max-width:340px;border-color:var(--acc);box-shadow:0 0 0 4px rgba(143,180,255,.1)}
+@media(max-width: 600px) { .search, .search:focus-within { max-width: 100%; } }
 .search input,.search input:focus{border:0;background:none;box-shadow:none;padding:.4rem 0}
 .search button{width:34px;height:34px;border-radius:50%;border:0;background:var(--acc);color:#0a0c11;display:grid;place-items:center;cursor:pointer;transition:transform .25s}
 .search button:hover{transform:scale(1.08) rotate(-8deg)}
