@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Modify Vendor | NexusRisk{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="margin-bottom: 0.5rem; text-align: center;">Modify Vendor Entity</h1>
+    <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">Updating registry profile for <span class="mono">{{ seller_id }}</span></p>
+
+    <div class="panel-chassis">
+        <form method="POST">
+            <div class="form-group">
+                <label>Corporate Name</label>
+                <input type="text" name="name" value="{{ seller.sellerName }}" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>City Hub</label>
+                    <input type="text" name="city" value="{{ seller.sellerCity }}" required>
+                </div>
+                <div class="form-group">
+                    <label>State Code</label>
+                    <input type="text" name="state" value="{{ seller.sellerState }}" required maxlength="2">
+                </div>
+            </div>
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <a href="{{ url_for('sellers.seller', seller_id=seller_id) }}" class="btn-outline">CANCEL</a>
+                <button type="submit" class="btn-instrument">OVERWRITE RECORD</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

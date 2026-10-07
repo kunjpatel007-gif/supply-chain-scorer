@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results | NexusRisk{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <a href="{{ url_for('dashboard.index') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">← Return to Dashboard</a>
+        <h1 style="display: flex; align-items: center; gap: 1rem;">
+            Search Query: <span style="color: var(--accent-amber);">"{{ query }}"</span>
+        </h1>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Showing exact and partial matches from the vendor registry.</p>
+    </div>
+</div>
+
+<div class="panel-chassis">
+    <table>
+        <thead>
+            <tr>
+                <th>Vendor ID</th>
+                <th>Name</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for seller in sellers %}
+            <tr>
+                <td class="mono" style="color: var(--text-main);">{{ seller.id }}</td>
+                <td style="color: var(--text-main);">{{ seller.name }}</td>
+                <td>
+                    <a href="{{ url_for('sellers.seller', seller_id=seller.id) }}" class="btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">INSPECT</a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not sellers %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found matching your query.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

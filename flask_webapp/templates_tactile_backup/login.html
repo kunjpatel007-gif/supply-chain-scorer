@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Gateway | NexusRisk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --surface-canvas: #0d0e11;
+            --surface-subtle: #131519;
+            --surface-card: #17191e;
+            --border-subtle: #2a2d36;
+            --border-muted: #353842;
+            --accent-amber: #d97736;
+            --accent-amber-hover: #e0833a;
+            --accent-glow: 0 0 12px rgba(217, 119, 54, 0.15);
+            --text-main: #f4f4f6;
+            --text-muted: #9da2af;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--surface-canvas);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .auth-chassis {
+            background: var(--surface-card);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 16px 32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .brand {
+            font-family: 'Chivo', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent-amber);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        input {
+            width: 100%;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-muted);
+            color: var(--text-main);
+            padding: 0.875rem 1rem;
+            border-radius: 2px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--accent-amber);
+            box-shadow: var(--accent-glow);
+        }
+
+        .btn-instrument {
+            background: var(--accent-amber);
+            color: #000;
+            border: none;
+            padding: 1rem;
+            width: 100%;
+            border-radius: 2px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background 0.2s;
+            margin-top: 1rem;
+        }
+        .btn-instrument:hover {
+            background: var(--accent-amber-hover);
+            box-shadow: var(--accent-glow);
+        }
+
+        .flash {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            padding: 1rem;
+            color: var(--text-main);
+            border-radius: 2px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-chassis">
+        <div class="brand">NexusRisk</div>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.875rem;">Terminal Gateway Authorization</p>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Operator Clearance ID (Username)</label>
+                <input type="text" name="username" required autofocus autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Security Phrase (Password)</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-instrument">AUTHENTICATE</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Register Vendor | NexusRisk{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="margin-bottom: 0.5rem; text-align: center;">Register New Vendor</h1>
+    <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">Add a new entity to the supply chain registry.</p>
+
+    <div class="panel-chassis">
+        <form method="POST">
+            <div class="form-group">
+                <label>System Vendor ID</label>
+                <input type="text" name="seller_id" class="mono" placeholder="e.g. S999" required>
+            </div>
+            <div class="form-group">
+                <label>Corporate Name</label>
+                <input type="text" name="name" placeholder="e.g. Acme Corporation" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>City Hub</label>
+                    <input type="text" name="city" placeholder="e.g. Austin" required>
+                </div>
+                <div class="form-group">
+                    <label>State Code</label>
+                    <input type="text" name="state" placeholder="e.g. TX" required maxlength="2">
+                </div>
+            </div>
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <a href="{{ url_for('dashboard.index') }}" class="btn-outline">CANCEL</a>
+                <button type="submit" class="btn-instrument">COMMIT TO REGISTRY</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

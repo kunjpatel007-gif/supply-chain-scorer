@@ -14,6 +14,7 @@ sys.path.insert(0, PROJECT_ROOT)
 from project_env import load_env
 
 from backend.firebase_client import db
+from firebase_admin import firestore
 
 def load_models(base_dir):
     model_path = os.path.join(base_dir, '..', 'training', 'vendor_risk_model.json')

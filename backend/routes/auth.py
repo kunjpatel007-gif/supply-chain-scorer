@@ -9,6 +9,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 auth_bp = Blueprint('auth', __name__)
 
 
+import threading
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -17,6 +19,12 @@ def login():
             session['logged_in'] = True
             return redirect(url_for('dashboard.index'))
         return render_template('login.html', error='Invalid password')
+        
+    # GET Request: CACHE WARMING!
+    # Silently fetch the 3095 sellers into RAM while the user types their password.
+    from backend.routes.dashboard import get_seller_map
+    threading.Thread(target=get_seller_map, daemon=True).start()
+    
     return render_template('login.html')
 
 

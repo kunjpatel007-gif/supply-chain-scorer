@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Live Simulator | NexusRisk{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="margin-bottom: 0.5rem; text-align: center;">Live Event Simulator</h1>
+    <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">Inject synthetic supply chain disruptions into the system to observe the real-time XGBoost ML Risk Inference response.</p>
+
+    <div class="panel-chassis">
+        <form method="POST" action="{{ url_for('simulator.simulate_event') }}">
+            <div class="form-group">
+                <label>Target Vendor (Type to Search)</label>
+                <input list="seller_options" name="seller_id" id="seller_input" placeholder="Search by Vendor ID or Name..." required>
+                <datalist id="seller_options">
+                    {% for seller in sellers %}
+                        <option value="{{ seller.id }}">{{ seller.name }}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label>Injection: Delivery Delay (Days)</label>
+                <input type="number" name="delay_days" placeholder="e.g. 5" required min="0">
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label>Injection: VADER NLP Quality Review Text</label>
+                <textarea name="review_text" rows="4" placeholder="Enter a simulated quality inspection review... (e.g., 'The products arrived completely damaged and the quality was unacceptable.')" required></textarea>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <a href="{{ url_for('dashboard.index') }}" class="btn-outline">CANCEL INJECTION</a>
+                <button type="submit" class="btn-instrument">EXECUTE SIMULATION</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

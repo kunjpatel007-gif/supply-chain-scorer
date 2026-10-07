@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Risk Category: {{ risk_level }} | NexusRisk{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <a href="{{ url_for('dashboard.index') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">← Return to Dashboard</a>
+        <h1 style="display: flex; align-items: center; gap: 1rem;">
+            Risk Category Analysis: <span style="color: {% if risk_level == 'High' %}var(--accent-red){% elif risk_level == 'Medium' %}var(--accent-amber){% else %}var(--accent-green){% endif %};">{{ risk_level }}</span>
+        </h1>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Viewing all vendors flagged as {{ risk_level }} risk by the XGBoost pipeline.</p>
+    </div>
+</div>
+
+<div class="panel-chassis">
+    <table>
+        <thead>
+            <tr>
+                <th>Vendor ID</th>
+                <th>Name</th>
+                <th>Risk Score</th>
+                <th>Trend</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for seller in sellers %}
+            <tr>
+                <td class="mono" style="color: var(--text-main);">{{ seller.sellerId }}</td>
+                <td style="color: var(--text-main);">{{ seller.sellerName }}</td>
+                <td class="mono" style="color: {% if seller.riskScore >= 75 %}var(--accent-red){% elif seller.riskScore >= 50 %}var(--accent-amber){% else %}var(--accent-green){% endif %};">{{ "%.2f"|format(seller.riskScore) }}</td>
+                <td style="color: {% if seller.trend == 'Deteriorating' %}var(--accent-red){% elif seller.trend == 'Improving' %}var(--accent-green){% else %}var(--text-muted){% endif %};">{{ seller.trend }}</td>
+                <td>
+                    <a href="{{ url_for('sellers.seller', seller_id=seller.sellerId) }}" class="btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">INSPECT</a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not sellers %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found in this tier.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
