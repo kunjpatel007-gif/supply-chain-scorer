@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | NexusRisk{% endblock %}
+{% block actions %}<a class="pill" href="{{ url_for('dashboard.index') }}"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Dashboard</span></a>{% endblock %}
+{% block content %}
+<div class="empty rise">
+    <h3>{{ title }}</h3>
+    <p>{{ message }}</p>
+    <a href="{{ url_for('dashboard.index') }}" class="btn sm" style="margin-top:1.5rem">Back to dashboard</a>
+</div>
+{% endblock %}

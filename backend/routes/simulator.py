@@ -1,113 +1,102 @@
-from flask import Blueprint, request, redirect, url_for, session, flash, render_template
-from backend.firebase_client import db
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+"""
+routes/simulator.py
+-------------------
+Inject one simulated order (delivery delay + written review) for a seller,
+then re-score that seller live so the dashboard changes straight away.
+
+Writes use exactly the field names the pipeline and feature code read.
+"""
 import uuid
-import datetime
+
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+from backend import scoring
+from backend.features import compute_seller_features, fetch_frames
+from backend.firebase_client import db
+from backend.ml_service import model_version, predict_one
+from backend.routes.dashboard import get_seller_map, login_required
 
 simulator_bp = Blueprint('simulator', __name__)
 analyzer = SentimentIntensityAnalyzer()
 
+MAX_DELAY_DAYS = 365
+MAX_REVIEW_CHARS = 2000
+
+
+def review_from_text(text):
+    """VADER compound (-1..1) -> (review score 1-5, severity 0-5 on the same scale as the NLP data)."""
+    compound = analyzer.polarity_scores(text)['compound']
+    severity = round(max(0.0, -compound) * 5.0, 2)
+    review_score = 1 if compound <= -0.5 else 2 if compound < -0.2 else 3 if compound < 0.2 else 5
+    return compound, review_score, severity
+
+
 @simulator_bp.route('/simulate', methods=['GET', 'POST'])
+@login_required
 def simulate_event():
-    # Security: Ensure only logged in admins can access this page
-    if not session.get('logged_in'):
-        return redirect(url_for('auth.login'))
+    if request.method == 'GET':
+        sellers = [{'id': sid, 'name': name} for sid, name in get_seller_map().items()]
+        return render_template('simulate.html', sellers=sellers)
 
-    if request.method == 'POST':
-        seller_id = request.form.get('seller_id')
-        delay_days = request.form.get('delay_days')
-        review_text = request.form.get('review_text')
+    seller_id = (request.form.get('seller_id') or '').strip()
+    review_text = (request.form.get('review_text') or '').strip()
+    try:
+        delay_days = int(request.form.get('delay_days', ''))
+    except ValueError:
+        flash("Delay must be a whole number of days.")
+        return redirect(url_for('simulator.simulate_event'))
 
-        if not seller_id or not delay_days or not review_text:
-            flash("All fields are required to run the simulation.")
-            return redirect(url_for('simulator.simulate_event'))
+    if not seller_id or not review_text:
+        flash("All fields are required to run the simulation.")
+        return redirect(url_for('simulator.simulate_event'))
+    if not 0 <= delay_days <= MAX_DELAY_DAYS:
+        flash(f"Delay must be between 0 and {MAX_DELAY_DAYS} days.")
+        return redirect(url_for('simulator.simulate_event'))
+    if len(review_text) > MAX_REVIEW_CHARS:
+        flash(f"Review is too long (max {MAX_REVIEW_CHARS} characters).")
+        return redirect(url_for('simulator.simulate_event'))
+    if not db.collection('sellers').document(seller_id).get().exists:
+        flash(f"Unknown seller: {seller_id}")
+        return redirect(url_for('simulator.simulate_event'))
 
-        try:
-            delay_days = int(delay_days)
-        except ValueError:
-            flash("Delay must be a number.")
-            return redirect(url_for('simulator.simulate_event'))
+    compound, review_score, severity = review_from_text(review_text)
+    po_id = f"SIM-PO-{uuid.uuid4().hex[:8].upper()}"
+    now = scoring.now_utc()
 
-        # Generate a shared Purchase Order ID for this simulated event
-        po_id = f"SIM-PO-{uuid.uuid4().hex[:8].upper()}"
+    # One simulated order, written the same way the ETL loader writes real ones
+    batch = db.batch()
+    batch.set(db.collection('purchase_orders').document(po_id),
+              {'poId': po_id, 'orderDate': now, 'orderStatus': 'delivered', 'simulated': True})
+    batch.set(db.collection('po_lines').document(),
+              {'poId': po_id, 'sellerId': seller_id, 'lineNo': 1,
+               'productId': 'SIM-PROD-1', 'simulated': True})  # no price: keeps avg_price honest
+    batch.set(db.collection('deliveries').document(),
+              {'poId': po_id, 'delayDays': delay_days, 'actualDeliveryDate': now, 'simulated': True})
+    batch.set(db.collection('quality_inspections').document(),
+              {'poId': po_id, 'inspectionDate': now, 'reviewScore': review_score,
+               'rejectionFlag': 'Negative' if review_score <= 3 else 'Positive',
+               'vaderSeverityWeight': severity, 'reviewCommentMessage': review_text,
+               'simulated': True})
+    batch.commit()
 
-        # 1. NLP VADER Processing
-        scores = analyzer.polarity_scores(review_text)
-        compound_score = scores['compound']
-        
-        # In our ML model, VaderSeverityWeight needs to be high for negative reviews.
-        # VADER compound: -1 (negative) to 1 (positive).
-        # We invert it so -1 becomes +1 severity penalty.
-        severity_weight = -compound_score
+    # Live re-score of just this seller
+    feats = compute_seller_features(fetch_frames(db, seller_id))
+    score, category = predict_one(feats.loc[seller_id]) if seller_id in feats.index else (None, None)
+    if score is None:
+        flash(f"Event logged for {seller_id} (sentiment {compound:+.2f}, severity {severity:.1f}/5). "
+              "Live scoring skipped: the model hasn't been retrained yet.")
+        return redirect(url_for('sellers.seller', seller_id=seller_id))
 
-        # 2. Inject Delivery Event
-        if delay_days > 0:
-            db.collection('deliveries').add({
-                'poId': po_id,
-                'delayDays': delay_days,
-                'timestamp': datetime.datetime.utcnow().isoformat()
-            })
+    version = model_version()
+    period = scoring.current_period()
+    old = db.collection('risk_scores').document(scoring.score_doc_id(seller_id, period)).get()
+    was_high = old.exists and (old.to_dict() or {}).get('RiskCategory') == 'High'
+    rec = scoring.write_single_score(db, seller_id, score, category, version)
+    if category == 'High' and not was_high:
+        name = get_seller_map().get(seller_id)
+        db.collection('alert_log').document().set(scoring.high_alert(seller_id, name, rec, 1))
 
-        # 3. Inject NLP Quality Inspection Event
-        db.collection('quality_inspections').add({
-            'poId': po_id,
-            'reviewScore': 1 if compound_score < -0.5 else 3 if compound_score < 0 else 5,
-            'rejectionFlag': 'Negative' if compound_score < -0.2 else 'None',
-            'VaderSeverityWeight': severity_weight,
-            'rawReviewText': review_text,
-            'timestamp': datetime.datetime.utcnow().isoformat()
-        })
-
-        # Also inject a mock po_lines entry so the pipeline can JOIN them
-        db.collection('po_lines').add({
-            'poId': po_id,
-            'sellerId': seller_id,
-            'lineNo': 1,
-            'productId': 'SIM-PROD-1',
-            'unitPriceAtOrder': 500.0,
-            'freightValue': 50.0
-        })
-
-        # --- LIVE ML INFERENCE ---
-        # The user requested that we instantly update the ML risk score for this specific seller
-        # so they don't have to wait for the nightly batch Job during their presentation.
-        from pipeline.risk_scoring_pipeline import get_seller_features
-        from backend.ml_service import predict_risk_category
-        import pandas as pd
-        import json
-
-        # 1. Fetch the newly updated behavioral features for just this one seller
-        df = get_seller_features(db, seller_id=seller_id)
-        
-        if not df.empty:
-            # 2. Run the trained XGBoost model in memory
-            risk_category = predict_risk_category(df)
-            
-            # 3. Calculate a basic numerical score based on the NLP severity
-            # (In the real batch pipeline, this uses MinMaxScaler, but for the live demo we simulate the drop)
-            base_score = 75.0
-            penalty = (severity_weight * 30.0) if severity_weight > 0 else 0
-            final_score = max(0, min(100, base_score - penalty))
-
-            # 4. Save the Live Inference result to Firestore
-            risk_data = {
-                'sellerId': seller_id,
-                'compositeScore': final_score,
-                'riskCategory': risk_category,
-                'lastUpdated': datetime.datetime.utcnow().isoformat(),
-                'trend': 'Deteriorating' if severity_weight > 0 else 'Stable'
-            }
-            db.collection('risk_scores').document(seller_id).set(risk_data)
-        
-            flash(f"Simulation logged for {seller_id}! NLP Severity: {severity_weight:.2f}. Live XGBoost Inference predicted category: {risk_category}")
-        else:
-            flash(f"Simulation logged for {seller_id}! NLP Severity: {severity_weight:.2f}. (ML Inference skipped, insufficient history).")
-
-        return redirect(url_for('dashboard.index'))
-
-    # GET request: Fetch sellers from the ultra-fast RAM Cache
-    from backend.routes.dashboard import get_seller_map
-    seller_map = get_seller_map()
-    sellers = [{'id': sid, 'name': name} for sid, name in seller_map.items()]
-    
-    return render_template('simulate.html', sellers=sellers)
+    flash(f"Event logged for {seller_id}: sentiment {compound:+.2f}, severity {severity:.1f}/5. "
+          f"New risk score {score:.1f} ({category}, trend {rec['RiskTrend']}).")
+    return redirect(url_for('sellers.seller', seller_id=seller_id))

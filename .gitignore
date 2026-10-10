@@ -23,3 +23,5 @@ KUNJUPLOADED/
 pdf_preview/
 backup/
 cookies.txt
+data/
+training/dataset.csv

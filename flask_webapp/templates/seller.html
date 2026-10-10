@@ -35,7 +35,7 @@
 {% endblock %}
 {% block content %}
 {% set latest_score = history[0][1]|float if history else 0 %}
-{% set latest_cat = history[0][2]|lower if history else 'low' %}
+{% set latest_cat = (history[0][2] or '')|lower if history else '' %}
 {% set score_color = "var(--coral)" if latest_cat == 'high' else ("var(--amber)" if latest_cat == 'medium' else "var(--emerald)") %}
 <div class="head rise">
     <div>
@@ -50,12 +50,17 @@
 <div class="hero">
     <div class="glass rise" style="--i:1">
         <div class="ttl">Live ML Prediction</div>
-        {% set ml_cat = (live_ml_category|lower) if live_ml_category else 'low' %}
+        {% set ml_cat = (live_ml_category|lower) if live_ml_category else '' %}
         <div class="seg">
             <div class="{% if ml_cat == 'low' %}active-low{% endif %}">Low</div>
             <div class="{% if ml_cat == 'medium' %}active-medium{% endif %}">Medium</div>
             <div class="{% if ml_cat == 'high' %}active-high{% endif %}">High</div>
         </div>
+        <p style="margin-top:.75rem;color:var(--mute);font-size:.85rem">
+            {% if live_ml_score is not none %}Risk score {{ "%.1f"|format(live_ml_score) }} / 100 &middot; chance of being in the worst 25% next 4 months
+            {% elif features.total_orders %}Model not trained yet &mdash; run the retraining steps
+            {% else %}Not enough data &mdash; this seller has no orders yet{% endif %}
+        </p>
     </div>
 
     <div class="glass rise" style="--i:2">
@@ -64,15 +69,17 @@
             <div class="gauge" style="--score: {{ latest_score }}%; --gc: {{ score_color }};"><div class="gauge-value" data-n>{{ "%.1f"|format(latest_score) }}</div></div>
             <div>
                 <h3>Overall Score</h3>
-                <p>{{ history[0][0] if history else 'N/A' }}</p>
+                <p>{{ history[0][0] if history else 'Not scored yet' }}</p>
                 <p style="margin-top:.5rem">
-                    {% set trend = history[0][3] if history else 'Stable' %}
-                    {% if trend == 'Worsening' %}
-                        <span class="text-coral">↘ Worsening</span>
-                    {% elif trend == 'Improving' %}
-                        <span class="text-emerald">↗ Improving</span>
-                    {% else %}
+                    {% set trend = history[0][3] if history else '' %}
+                    {% if trend == 'UP' %}
+                        <span class="text-coral">↗ Risk rising</span>
+                    {% elif trend == 'DOWN' %}
+                        <span class="text-emerald">↘ Risk falling</span>
+                    {% elif trend == 'STABLE' %}
                         <span class="text-neutral">→ Stable</span>
+                    {% elif trend == 'NEW' %}
+                        <span class="text-neutral">New this period</span>
                     {% endif %}
                 </p>
             </div>
@@ -85,10 +92,10 @@
 <div class="tel">
     <div class="glass rise" style="--i:4">
         <div class="ttl">Volume & Value</div>
-        <div class="m"><span>Total Orders</span><span>{{ features.total_orders|int }}</span></div>
-        <div class="m"><span>Avg Price</span><span>${{ "%.2f"|format(features.avg_price|default(0)) }}</span></div>
-        <div class="m"><span>Price Volatility</span><span>{{ "%.2f"|format(features.price_volatility|default(0)) }}</span></div>
-        <div class="m"><span>Avg Freight</span><span>${{ "%.2f"|format(features.avg_freight|default(0)) }}</span></div>
+        <div class="m"><span>Total Orders</span><span>{{ features.total_orders|default(0, true)|int }}</span></div>
+        <div class="m"><span>Avg Price</span><span>${{ "%.2f"|format(features.avg_price|default(0, true)) }}</span></div>
+        <div class="m"><span>Price Volatility</span><span>{{ "%.2f"|format(features.price_volatility|default(0, true)) }}</span></div>
+        <div class="m"><span>Avg Freight</span><span>${{ "%.2f"|format(features.avg_freight|default(0, true)) }}</span></div>
     </div>
 
     <div class="glass rise" style="--i:5">
@@ -96,8 +103,10 @@
         <div class="m">
             <span>Avg Delay</span>
             <span>
-                {% set delay = features.avg_delay_days|default(0)|float %}
-                {% if delay < 0 %}
+                {% set delay = features.avg_delay_days|default(0, true)|float %}
+                {% if features.avg_delay_days is none %}
+                    <span class="text-neutral">No deliveries</span>
+                {% elif delay < 0 %}
                     <span class="text-emerald">{{ delay|abs|round|int }}d early</span>
                 {% elif delay > 0 %}
                     <span class="text-coral">{{ delay|round|int }}d late</span>
@@ -106,11 +115,11 @@
                 {% endif %}
             </span>
         </div>
-        <div class="m"><span>Max Delay</span><span>{{ features.max_delay_days|default(0)|int }}d</span></div>
-        <div class="m"><span>Late Deliveries</span><span>{{ "%.1f"|format((features.pct_late_deliveries|default(0) * 100)) }}%</span></div>
+        <div class="m"><span>Max Delay</span><span>{{ features.max_delay_days|default(0, true)|int }}d</span></div>
+        <div class="m"><span>Late Deliveries</span><span>{{ "%.1f"|format((features.pct_late_deliveries|default(0, true) * 100)) }}%</span></div>
         <div class="m">
-            <span>Rejection Rate</span>
-            {% set rej_pct = features.rejection_rate|default(0) * 100 %}
+            <span>Negative Reviews</span>
+            {% set rej_pct = features.negative_review_rate|default(0, true) * 100 %}
             <span class="{% if rej_pct > 15 %}text-coral{% elif rej_pct > 5 %}text-amber{% else %}text-emerald{% endif %}">{{ "%.1f"|format(rej_pct) }}%</span>
         </div>
     </div>
@@ -119,11 +128,11 @@
         <div class="ttl">Quality & Sentiment</div>
         <div class="m">
             <span>Avg Review</span>
-            <span class="{% if features.avg_review_score|default(0) < 3.5 %}text-coral{% else %}text-emerald{% endif %}">{{ "%.1f"|format(features.avg_review_score|default(0)) }}/5.0</span>
+            {% if features.avg_review_score is none %}<span class="text-neutral">No reviews</span>{% else %}<span class="{% if features.avg_review_score < 3.5 %}text-coral{% else %}text-emerald{% endif %}">{{ "%.1f"|format(features.avg_review_score) }}/5.0</span>{% endif %}
         </div>
-        <div class="m"><span>Negative Reviews</span><span>{{ features.negative_review_count|default(0)|int }}</span></div>
-        <div class="m"><span>Defect Penalty</span><span>{{ "%.1f"|format(features.defect_penalty|default(0)) }}</span></div>
-        <div class="m"><span>Unique Products</span><span>{{ features.unique_products|default(0)|int }}</span></div>
+        <div class="m"><span>Reviews</span><span>{{ features.n_reviews|default(0, true)|int }}</span></div>
+        <div class="m"><span>Defect Severity / Order</span><span>{{ "%.2f"|format(features.defect_rate|default(0, true)) }}</span></div>
+        <div class="m"><span>Unique Products</span><span>{{ features.unique_products|default(0, true)|int }}</span></div>
     </div>
 </div>
 {% endif %}
@@ -135,11 +144,11 @@
         {% set def_cat = defect[0] %}
         {% set def_count = defect[1] %}
         {% set def_weight = defect[2] %}
-        {% set total_orders = features.total_orders|default(1)|int %}
+        {% set total_orders = features.total_orders|default(1, true)|int %}
         {% set total_orders = total_orders if total_orders > 0 else 1 %}
         {% set def_rate = (def_count / total_orders) * 100 %}
 
-        {% if def_cat == 'No Defect' or def_weight < 2 %}
+        {% if def_cat == 'Not a Defect' or def_weight < 2 %}
             {% set defect_color_class = 'text-emerald' %}
         {% elif def_weight <= 3 %}
             {% set defect_color_class = 'text-amber' %}

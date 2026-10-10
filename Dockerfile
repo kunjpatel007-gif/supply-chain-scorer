@@ -16,5 +16,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose the port Cloud Run uses
 EXPOSE 8080
 
-# Run gunicorn pointing to the Flask app inside desktop_app
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "flask_webapp.app:app"]
+# Run gunicorn pointing to the Flask app
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "120", "flask_webapp.app:app"]

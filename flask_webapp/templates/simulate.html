@@ -5,16 +5,9 @@
 <div class="narrow">
     <div class="head rise"><h1>Simulate event</h1></div>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        {% for message in messages %}
-          <div class="flash">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
     <div class="glass rise" style="--i:1;padding:2rem">
         <form method="POST" action="{{ url_for('simulator.simulate_event') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="grp">
                 <label>Target Seller (Type to Search)</label>
                 <input list="seller_options" name="seller_id" id="seller_input" placeholder="Search by Seller ID or Name..." required>
@@ -24,8 +17,8 @@
                     {% endfor %}
                 </datalist>
             </div>
-            <div class="grp"><label>Delay (days)</label><input type="number" name="delay_days" min="0" required></div>
-            <div class="grp"><label>Review notes</label><textarea name="review_text" required></textarea></div>
+            <div class="grp"><label>Delay (days)</label><input type="number" name="delay_days" min="0" max="365" required></div>
+            <div class="grp"><label>Review notes</label><textarea name="review_text" maxlength="2000" required placeholder="Write it in English, e.g. Arrived broken, terrible quality"></textarea></div>
             <button type="submit" class="btn"><svg class="i" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Run analysis and inject</button>
         </form>
     </div>

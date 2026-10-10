@@ -1,23 +1,48 @@
 """
 routes/dashboard.py
 -------------------
-Main dashboard and category listing routes.
+Main dashboard, category listing, the seller cache and the login guard.
 """
+import threading
 from functools import wraps
-from flask import Blueprint, render_template, redirect, url_for, session
-from firebase_admin import firestore
+
+from flask import Blueprint, redirect, render_template, session, url_for
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from backend.firebase_client import db
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
-SELLER_MAP_CACHE = None
+# In-memory seller cache: {sellerId: {sellerName, sellerCity, sellerState}}.
+# Per process; add/edit/delete keep it in sync.
+_SELLERS = None
+_SELLERS_LOCK = threading.Lock()
+
+
+def get_sellers():
+    global _SELLERS
+    with _SELLERS_LOCK:
+        if _SELLERS is None:
+            _SELLERS = {s.id: s.to_dict() or {} for s in db.collection('sellers').stream()}
+        return _SELLERS
+
+
+def cache_put(seller_id, data):
+    with _SELLERS_LOCK:
+        if _SELLERS is not None:
+            _SELLERS[seller_id] = {**_SELLERS.get(seller_id, {}), **data}
+
+
+def cache_drop(seller_id):
+    with _SELLERS_LOCK:
+        if _SELLERS is not None:
+            _SELLERS.pop(seller_id, None)
+
 
 def get_seller_map():
-    global SELLER_MAP_CACHE
-    if SELLER_MAP_CACHE is None:
-        sellers_ref = db.collection('sellers').get()
-        SELLER_MAP_CACHE = {s.id: s.to_dict().get('sellerName', 'Unknown') for s in sellers_ref}
-    return SELLER_MAP_CACHE
+    """{sellerId: sellerName} - kept for templates/older callers."""
+    return {sid: d.get('sellerName', 'Unknown') for sid, d in get_sellers().items()}
+
 
 def login_required(f):
     @wraps(f)
@@ -27,85 +52,67 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def get_dashboard_meta():
+    doc = db.collection('system_config').document('dashboard_metadata').get()
+    return doc.to_dict() if doc.exists else {}
+
+
 @dashboard_bp.route('/')
 @login_required
 def index():
     seller_map = get_seller_map()
-    total_sellers = len(seller_map)
-    
-    # Sort for the dropdown if needed, though we don't pass all_sellers directly anymore except for backwards compat
-    all_sellers = [(sid, name) for sid, name in seller_map.items()]
+    meta = get_dashboard_meta()
 
-    # NO MORE PULLING 3000 DOCUMENTS!
-    # We now fetch exactly ONE tiny metadata document that was pre-aggregated by the pipeline overnight.
-    meta_doc = db.collection('system_config').document('dashboard_metadata').get()
-    
-    category_counts = {}
-    top_risky = []
-    
-    if meta_doc.exists:
-        meta_data = meta_doc.to_dict()
-        category_counts = meta_data.get('category_counts', {})
-        top_risky_raw = meta_data.get('top_risky', [])
-        
-        for r in top_risky_raw:
-            sid = r.get('SellerID')
-            sname = seller_map.get(sid, "Unknown")
-            top_risky.append((
-                sid,
-                sname,
-                r.get('WeightedRiskScore', 0),
-                r.get('RiskCategory', 'Unknown'),
-                r.get('RiskTrend', 'Stable')
-            ))
+    top_risky = [(r.get('SellerID'), seller_map.get(r.get('SellerID'), 'Unknown'),
+                  r.get('WeightedRiskScore', 0), r.get('RiskCategory', 'Unknown'),
+                  r.get('RiskTrend', 'NEW'))
+                 for r in meta.get('top_risky', [])]
 
     try:
-        alerts_ref = db.collection('alert_log').order_by('AlertDate', direction=firestore.Query.DESCENDING).limit(5).get()
+        alerts = (db.collection('alert_log').order_by('AlertDate', direction='DESCENDING')
+                  .limit(5).stream())
+        recent_alerts = []
+        for a in alerts:
+            d = a.to_dict() or {}
+            sid = d.get('SellerID')
+            recent_alerts.append((sid, seller_map.get(sid, 'Unknown'),
+                                  d.get('AlertMessage', ''), d.get('AlertDate')))
     except Exception:
-        alerts_ref = []
-    recent_alerts = []
-    for a in alerts_ref:
-        doc = a.to_dict()
-        seller_id = doc.get('SellerID')
-        seller_name = seller_map.get(seller_id, "Unknown")
-        
-        recent_alerts.append((
-            seller_id,
-            seller_name,
-            doc.get('AlertMessage', ''),
-            doc.get('AlertDate')
-        ))
+        recent_alerts = []
 
     return render_template(
         'index.html',
-        total_sellers=total_sellers,
-        category_counts=category_counts,
+        total_sellers=len(seller_map),
+        category_counts=meta.get('category_counts', {}),
+        period=meta.get('period'),
         top_risky=top_risky,
         recent_alerts=recent_alerts,
-        all_sellers=all_sellers,
+        all_sellers=list(seller_map.items()),
     )
+
 
 @dashboard_bp.route('/category/<risk_level>')
 @login_required
 def category_list(risk_level):
-    risk_level_title = risk_level.capitalize()
-    if risk_level_title not in ['High', 'Medium', 'Low']:
+    level = risk_level.capitalize()
+    if level not in ('High', 'Medium', 'Low'):
         return redirect(url_for('dashboard.index'))
 
+    period = get_dashboard_meta().get('period')
     seller_map = get_seller_map()
+    base = db.collection('risk_scores').where(filter=FieldFilter('RiskCategory', '==', level))
+    try:  # only the current period, not every month ever scored
+        docs = list(base.where(filter=FieldFilter('EvaluationPeriod', '==', period)).stream()) if period \
+            else list(base.stream())
+    except Exception:  # e.g. Firestore asks for an index: filter the period in Python instead
+        docs = [d for d in base.stream() if not period or (d.to_dict() or {}).get('EvaluationPeriod') == period]
 
-    risk_scores = db.collection('risk_scores').where(filter=firestore.FieldFilter('RiskCategory', '==', risk_level_title)).get()
     results = []
-    for r in risk_scores:
-        d = r.to_dict()
+    for r in docs:
+        d = r.to_dict() or {}
         sid = d.get('SellerID')
-        results.append((
-            sid,
-            seller_map.get(sid, 'Unknown'),
-            d.get('WeightedRiskScore', 0),
-            d.get('RiskCategory'),
-            d.get('RiskTrend')
-        ))
-    
+        results.append((sid, seller_map.get(sid, 'Unknown'), d.get('WeightedRiskScore', 0),
+                        d.get('RiskCategory'), d.get('RiskTrend')))
     results.sort(key=lambda x: x[2], reverse=True)
-    return render_template('category_list.html', risk_level=risk_level_title, results=results)
+    return render_template('category_list.html', risk_level=level, results=results)

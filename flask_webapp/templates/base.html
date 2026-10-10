@@ -119,7 +119,9 @@ a:hover>.go,a:hover .go{transform:translateX(4px);color:var(--ink)}
     <nav>{% block actions %}{% endblock %}</nav>
 </header>
 {% endblock %}
-<main>{% block content %}{% endblock %}</main>
+<main>
+{% for m in get_flashed_messages() %}<div class="flash rise">{{ m }}</div>{% endfor %}
+{% block content %}{% endblock %}</main>
 <script>
 (()=>{const d=document;
 d.querySelectorAll('[data-n]').forEach(e=>{const t=parseFloat(e.textContent);if(isNaN(t)||matchMedia('(prefers-reduced-motion:reduce)').matches)return;const p=(e.textContent.split('.')[1]||'').length,s=performance.now();(function f(n){const k=Math.min((n-s)/900,1);e.textContent=(t*(1-Math.pow(1-k,3))).toFixed(p);if(k<1)requestAnimationFrame(f)})(s)});

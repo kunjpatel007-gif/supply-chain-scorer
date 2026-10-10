@@ -3,32 +3,32 @@ routes/auth.py
 --------------
 Login and logout routes.
 """
+import hmac
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, session
+import threading
+
+from flask import Blueprint, redirect, render_template, request, session, url_for
 
 auth_bp = Blueprint('auth', __name__)
 
 
-import threading
-
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        pwd = request.form.get('password')
-        if pwd == os.getenv('ADMIN_PASSWORD', 'admin123'):
+        pwd = request.form.get('password') or ''
+        if hmac.compare_digest(pwd.encode(), os.environ['ADMIN_PASSWORD'].encode()):
+            session.clear()
             session['logged_in'] = True
             return redirect(url_for('dashboard.index'))
-        return render_template('login.html', error='Invalid password')
-        
-    # GET Request: CACHE WARMING!
-    # Silently fetch the 3095 sellers into RAM while the user types their password.
-    from backend.routes.dashboard import get_seller_map
-    threading.Thread(target=get_seller_map, daemon=True).start()
-    
+        return render_template('login.html', error='Invalid password'), 401
+
+    # Warm the seller cache in the background while the user types.
+    from backend.routes.dashboard import get_sellers
+    threading.Thread(target=get_sellers, daemon=True).start()
     return render_template('login.html')
 
 
 @auth_bp.route('/logout')
 def logout():
-    session.pop('logged_in', None)
+    session.clear()
     return redirect(url_for('auth.login'))

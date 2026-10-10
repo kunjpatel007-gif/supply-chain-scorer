@@ -7,8 +7,13 @@ import os
 from datetime import datetime
 from tqdm import tqdm
 
+import sys
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = PROJECT_ROOT
+sys.path.insert(0, PROJECT_ROOT)
+from etl.olist_frames import DEFECT_MAP, DEFECT_TYPES, find_raw_dir  # noqa: E402
+
+DATA_DIR = find_raw_dir(PROJECT_ROOT)
 
 def init_firebase():
     if not firebase_admin._apps:
@@ -101,7 +106,9 @@ def main():
     order_items_df = pd.read_csv(os.path.join(DATA_DIR, 'olist_order_items_dataset.csv'))
     reviews_df = pd.read_csv(os.path.join(DATA_DIR, 'olist_order_reviews_dataset.csv'))
     
-    nlp_path = os.path.join(DATA_DIR, 'nlp', 'vader_classified_reviews.csv')
+    nlp_path = os.path.join(DATA_DIR, 'vader_classified_reviews.csv')
+    if not os.path.exists(nlp_path):
+        nlp_path = os.path.join(PROJECT_ROOT, 'nlp', 'vader_classified_reviews.csv')
     if os.path.exists(nlp_path):
         vader_df = pd.read_csv(nlp_path)
     else:
@@ -188,18 +195,8 @@ def main():
         qi_data.reset_index(drop=True, inplace=True)
         qi_data['inspectionId'] = qi_data.index + 1
         
-        defect_map = {
-            'Not a Defect': 10,
-            'Service Defect': 11,
-            'Quality Issue': 12,
-            'Logistics Issue': 13,
-            'Fulfillment Error': 14,
-            'Major Product Issue': 15,
-            'Critical Failure': 16
-        }
-        
         if not vader_df.empty:
-            vader_df['defectTypeId'] = vader_df['DefectCategory'].map(defect_map)
+            vader_df['defectTypeId'] = vader_df['DefectCategory'].map(DEFECT_MAP).astype('Int64')
             vader_df = vader_df.rename(columns={'SeverityWeight': 'vaderSeverityWeight', 'InspectionID': 'inspectionId'})
             qi_data = pd.merge(qi_data, vader_df[['inspectionId', 'defectTypeId', 'vaderSeverityWeight']], on='inspectionId', how='left')
         else:
@@ -233,20 +230,7 @@ def main():
 
     # 8. defect_types
     if 'defect_types' in target_collections:
-        defect_types = [
-            {'defectTypeId': 1, 'category': 'Late Delivery', 'severity': 3.0},
-            {'defectTypeId': 2, 'category': 'Damaged Goods', 'severity': 4.0},
-            {'defectTypeId': 3, 'category': 'Wrong Item', 'severity': 5.0},
-            {'defectTypeId': 4, 'category': 'Poor Quality', 'severity': 3.5},
-            {'defectTypeId': 5, 'category': 'Other', 'severity': 1.0},
-            {'defectTypeId': 10, 'category': 'Not a Defect', 'severity': 0.0},
-            {'defectTypeId': 11, 'category': 'Service Defect', 'severity': 2.0},
-            {'defectTypeId': 12, 'category': 'Quality Issue', 'severity': 2.5},
-            {'defectTypeId': 13, 'category': 'Logistics Issue', 'severity': 3.0},
-            {'defectTypeId': 14, 'category': 'Fulfillment Error', 'severity': 3.5},
-            {'defectTypeId': 15, 'category': 'Major Product Issue', 'severity': 4.0},
-            {'defectTypeId': 16, 'category': 'Critical Failure', 'severity': 5.0}
-        ]
+        defect_types = DEFECT_TYPES
         batch_write(db, 'defect_types', defect_types, 'defectTypeId')
 
     # 9. risk_weight_config

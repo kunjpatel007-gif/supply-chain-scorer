@@ -34,6 +34,7 @@ tbody tr{transition:background .25s}tbody tr:hover{background:rgba(255,255,255,.
 <div class="head rise">
     <h1>Overview</h1>
     <form action="{{ url_for('sellers.search') }}" method="POST" class="search">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="seller_id" list="seller-list" placeholder="Search" required autocomplete="off">
         <datalist id="seller-list">
             {% for s in all_sellers %}

@@ -1,0 +1,80 @@
+{
+  "model_version": "20261010-193247",
+  "trained_at": "2026-10-10T19:32:47",
+  "question": "Probability the seller is in the worst 25% of sellers over the next 4 months (an order is bad if late or reviewed <= 2 stars).",
+  "features": [
+    "total_orders",
+    "total_items",
+    "unique_products",
+    "avg_price",
+    "avg_freight",
+    "price_volatility",
+    "avg_delay_days",
+    "max_delay_days",
+    "pct_late_deliveries",
+    "avg_review_score",
+    "negative_review_rate",
+    "n_reviews",
+    "defect_rate"
+  ],
+  "bands": {
+    "Medium": 40.0,
+    "High": 60.0
+  },
+  "params": {
+    "n_estimators": 300,
+    "max_depth": 3,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 5,
+    "scale_pos_weight": 3,
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "tree_method": "hist",
+    "random_state": 42
+  },
+  "train_rows": 3370,
+  "test_rows": 719,
+  "cutoffs": [
+    "2017-05-01",
+    "2017-06-01",
+    "2017-07-01",
+    "2017-08-01",
+    "2017-09-01",
+    "2017-10-01",
+    "2017-11-01",
+    "2018-03-01"
+  ],
+  "test_metrics": {
+    "auc": 0.6711,
+    "pr_auc": 0.4271,
+    "positive_rate": 0.235,
+    "baseline_auc_negative_review_rate": 0.6526,
+    "baseline_auc_pct_late": 0.5928
+  },
+  "test_bands": {
+    "Low": {
+      "sellers": 242.0,
+      "landed_in_worst_25pct": 0.1281,
+      "avg_future_bad_rate": 0.1497
+    },
+    "Medium": {
+      "sellers": 297.0,
+      "landed_in_worst_25pct": 0.2155,
+      "avg_future_bad_rate": 0.184
+    },
+    "High": {
+      "sellers": 180.0,
+      "landed_in_worst_25pct": 0.4111,
+      "avg_future_bad_rate": 0.2396
+    }
+  },
+  "top_features": [
+    "negative_review_rate",
+    "n_reviews",
+    "defect_rate",
+    "avg_delay_days",
+    "total_orders"
+  ]
+}

@@ -16,3 +16,11 @@ scratch/
 backup/
 db/
 scratch_pipeline.py
+data/
+archive/
+training/dataset.csv
+templates_ai_extract/
+frontend_revamp_test/
+flask_webapp/templates_tactile_backup/
+*.zip
+cookies.txt

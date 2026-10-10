@@ -1,133 +1,122 @@
+"""
+train_xgboost.py
+----------------
+Trains the vendor-risk model on training/dataset.csv (make it with build_dataset.py).
+
+    python training/train_xgboost.py
+
+Runs on a normal CPU in well under a minute. No GPU needed.
+
+Saves:
+  training/vendor_risk_model.json   the model (trained on ALL windows after evaluation)
+  training/model_card.json          features, band edges, test metrics, when it was trained
+"""
+import datetime
 import json
 import os
-import warnings
+import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import xgboost as xgb
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-
-warnings.filterwarnings('ignore')
+from sklearn.metrics import average_precision_score, roc_auc_score
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(PROJECT_ROOT, 'etl', 'seller_features.csv')
+sys.path.insert(0, PROJECT_ROOT)
+from backend.features import FEATURE_COLS  # noqa: E402
+
+DATA_PATH = os.path.join(PROJECT_ROOT, 'training', 'dataset.csv')
 MODEL_PATH = os.path.join(PROJECT_ROOT, 'training', 'vendor_risk_model.json')
-LABELS_PATH = os.path.join(PROJECT_ROOT, 'training', 'label_classes.json')
+CARD_PATH = os.path.join(PROJECT_ROOT, 'training', 'model_card.json')
 
-df = pd.read_csv(DATA_PATH)
+# Score = P(worst 25% next 4 months) x 100.  Category bands on that score:
+BANDS = {'Medium': 40.0, 'High': 60.0}   # < 40 Low, 40-60 Medium, >= 60 High
+MIN_TEST_AUC = 0.62
 
-print(f"Dataset shape: {df.shape}")
-print("=== Missing Values ===")
-print(df.isnull().sum())
-print(f"\n=== Dataset Info ===")
-print(f"Sellers: {len(df)}")
-print(f"Features: {df.shape[1]}")
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(df.select_dtypes(include=[np.number]).corr(), annot=False, cmap='coolwarm')
-plt.title('Correlation Heatmap')
-plt.close()
-
-fig, axes = plt.subplots(1, 2, figsize=(15, 5))
-sns.histplot(df['total_orders'], bins=50, ax=axes[0])
-axes[0].set_title('Distribution of Total Orders')
-sns.histplot(df['avg_review_score'], bins=20, ax=axes[1])
-axes[1].set_title('Distribution of Avg Review Score')
-plt.close()
-
-feature_cols = [
-    'total_orders', 'total_items', 'unique_products',
-    'avg_delay_days', 'max_delay_days', 'pct_late_deliveries',
-    'avg_review_score', 'rejection_rate', 'negative_review_count',
-    'avg_price', 'price_volatility', 'avg_freight', 'defect_penalty',
-]
-
-if 'defect_penalty' not in df.columns:
-    df['defect_penalty'] = 0.0
-
-df[feature_cols] = df[feature_cols].fillna(0)
-
-df['composite_score'] = (
-    df['pct_late_deliveries'].rank(pct=True) * 0.3
-    + (1 - df['avg_review_score'].rank(pct=True)) * 0.3
-    + df['rejection_rate'].rank(pct=True) * 0.2
-    + df['price_volatility'].rank(pct=True) * 0.1
-    + df['defect_penalty'].rank(pct=True) * 0.1
+PARAMS = dict(
+    n_estimators=300, max_depth=3, learning_rate=0.03,
+    subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
+    scale_pos_weight=3,             # ~1 positive per 3 negatives
+    objective='binary:logistic', eval_metric='logloss',
+    tree_method='hist', random_state=42,
 )
 
-df['RiskCategory'] = pd.cut(
-    df['composite_score'],
-    bins=[-np.inf, df['composite_score'].quantile(0.50),
-          df['composite_score'].quantile(0.80), np.inf],
-    labels=['Low', 'Medium', 'High'],
-)
 
-print("Risk Category Distribution:")
-print(df['RiskCategory'].value_counts())
+def band(score):
+    return np.where(score >= BANDS['High'], 'High', np.where(score >= BANDS['Medium'], 'Medium', 'Low'))
 
-plt.figure(figsize=(8, 5))
-sns.countplot(x='RiskCategory', data=df, order=['Low', 'Medium', 'High'])
-plt.title('Risk Category Distribution')
-plt.close()
 
-le = LabelEncoder()
-y = le.fit_transform(df['RiskCategory'])
-X = df[feature_cols].copy()
+def main():
+    if not os.path.exists(DATA_PATH):
+        sys.exit("training/dataset.csv not found. Run: python training/build_dataset.py --source csv")
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
-)
+    df = pd.read_csv(DATA_PATH)
+    train, test = df[df.split == 'train'], df[df.split == 'test']
+    print(f"Train rows: {len(train)}  Test rows: {len(test)}")
 
-print(f"Training set: {X_train.shape[0]} samples")
-print(f"Test set: {X_test.shape[0]} samples")
+    # 1) Evaluate on the later, unseen period
+    model = xgb.XGBClassifier(**PARAMS)
+    model.fit(train[FEATURE_COLS], train['y'])
+    p = model.predict_proba(test[FEATURE_COLS])[:, 1]
+    auc = roc_auc_score(test['y'], p)
+    pr_auc = average_precision_score(test['y'], p)
+    base_neg = roc_auc_score(test['y'], test['negative_review_rate'].fillna(0))
+    base_late = roc_auc_score(test['y'], test['pct_late_deliveries'].fillna(0))
 
-model = xgb.XGBClassifier(
-    n_estimators=200,
-    max_depth=6,
-    learning_rate=0.1,
-    tree_method='hist',
-    objective='multi:softmax',
-    num_class=3,
-    eval_metric='mlogloss',
-    random_state=42,
-)
+    t = test.assign(score=p * 100)
+    t['band'] = band(t['score'])
+    table = (t.groupby('band')
+               .agg(sellers=('y', 'size'), landed_in_worst_25pct=('y', 'mean'),
+                    avg_future_bad_rate=('bad_rate', 'mean'))
+               .reindex(['Low', 'Medium', 'High']).fillna(0))
 
-model.fit(
-    X_train, y_train,
-    eval_set=[(X_test, y_test)],
-    verbose=20,
-)
+    print("\n=== Test period (never seen in training) ===")
+    print(f"AUC:     {auc:.3f}   (0.5 = coin flip)")
+    print(f"PR-AUC:  {pr_auc:.3f}   (random = {test['y'].mean():.3f})")
+    print(f"Baselines  past negative-review rate AUC {base_neg:.3f} | past late % AUC {base_late:.3f}")
+    print("\nBands on the test period:")
+    print(table.round(3).to_string())
 
-y_pred = model.predict(X_test)
+    imp = pd.Series(model.feature_importances_, FEATURE_COLS).sort_values(ascending=False)
+    print("\nTop features:", ', '.join(imp.index[:5]))
 
-print("=== Classification Report ===")
-print(classification_report(y_test, y_pred, target_names=le.classes_))
+    ok = auc >= MIN_TEST_AUC
+    print(f"\nQuality check: AUC {auc:.3f} {'>=' if ok else '<'} {MIN_TEST_AUC} -> {'PASS' if ok else 'FAIL'}")
+    if not ok:
+        sys.exit("Model NOT saved. Send training output to Claude before deploying.")
 
-print(f"\nAccuracy: {accuracy_score(y_test, y_pred):.4f}")
-print(f"F1 Score (macro): {f1_score(y_test, y_pred, average='macro'):.4f}")
+    # 2) Refit on every window (train + test) for the model the app will use
+    final = xgb.XGBClassifier(**PARAMS)
+    final.fit(df[FEATURE_COLS], df['y'])
+    final.save_model(MODEL_PATH)
 
-fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+    card = {
+        'model_version': datetime.datetime.now().strftime('%Y%m%d-%H%M%S'),
+        'trained_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        'question': 'Probability the seller is in the worst 25% of sellers over the next 4 months '
+                    '(an order is bad if late or reviewed <= 2 stars).',
+        'features': FEATURE_COLS,
+        'bands': BANDS,
+        'params': PARAMS,
+        'train_rows': int(len(train)),
+        'test_rows': int(len(test)),
+        'cutoffs': sorted(df['cutoff'].unique().tolist()),
+        'test_metrics': {
+            'auc': round(float(auc), 4),
+            'pr_auc': round(float(pr_auc), 4),
+            'positive_rate': round(float(test['y'].mean()), 4),
+            'baseline_auc_negative_review_rate': round(float(base_neg), 4),
+            'baseline_auc_pct_late': round(float(base_late), 4),
+        },
+        'test_bands': {b: {k: round(float(v), 4) for k, v in row.items()} for b, row in table.iterrows()},
+        'top_features': imp.index[:5].tolist(),
+    }
+    with open(CARD_PATH, 'w', encoding='utf-8') as f:
+        json.dump(card, f, indent=2)
 
-cm = confusion_matrix(y_test, y_pred)
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=le.classes_, yticklabels=le.classes_, ax=axes[0])
-axes[0].set_title('Confusion Matrix')
-axes[0].set_xlabel('Predicted')
-axes[0].set_ylabel('Actual')
+    print(f"\nSaved {MODEL_PATH}")
+    print(f"Saved {CARD_PATH}")
 
-xgb.plot_importance(model, ax=axes[1], max_num_features=13)
-axes[1].set_title('Feature Importance')
 
-plt.tight_layout()
-plt.close()
-
-model.save_model(MODEL_PATH)
-print(f"Model saved to {MODEL_PATH}")
-
-with open(LABELS_PATH, 'w', encoding='utf-8') as f:
-    json.dump(le.classes_.tolist(), f)
-print(f"Label classes saved to {LABELS_PATH}")
+if __name__ == '__main__':
+    main()

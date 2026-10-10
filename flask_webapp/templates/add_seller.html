@@ -6,7 +6,8 @@
     <div class="head rise"><h1>New seller</h1></div>
     <div class="glass rise" style="--i:1;padding:2rem">
         <form method="POST">
-            <div class="grp"><label>Seller ID</label><input type="text" name="seller_id" required autofocus></div>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grp"><label>Seller ID</label><input type="text" name="seller_id" required autofocus pattern="[A-Za-z0-9_\-]{3,64}" title="3-64 letters, numbers, - or _"></div>
             <div class="grp"><label>Company name</label><input type="text" name="name" required></div>
             <div class="grp"><label>City</label><input type="text" name="city"></div>
             <div class="grp"><label>State</label><input type="text" name="state"></div>

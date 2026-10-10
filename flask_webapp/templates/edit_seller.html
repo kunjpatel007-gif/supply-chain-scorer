@@ -6,12 +6,14 @@
     <div class="head rise"><h1>{{ seller.sellerName }}</h1></div>
     <div class="glass rise" style="--i:1;padding:2rem">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="grp"><label>Company name</label><input type="text" name="name" value="{{ seller.sellerName }}" required autofocus></div>
             <div class="grp"><label>City</label><input type="text" name="city" value="{{ seller.sellerCity }}"></div>
             <div class="grp"><label>State</label><input type="text" name="state" value="{{ seller.sellerState }}"></div>
             <button type="submit" class="btn"><svg class="i" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Save changes</button>
         </form>
         <form method="POST" action="{{ url_for('sellers.delete_seller', seller_id=seller_id) }}" data-c="Delete {{ seller.sellerName }}?" onsubmit="return confirm(this.dataset.c)" style="margin-top:.75rem">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn danger">Delete seller</button>
         </form>
     </div>
