@@ -36,6 +36,19 @@ class Result:
         return f"Risk score {change} ({self.rec['RiskCategory']})."
 
 
+def _remember(seller_id, before, after):
+    """Keep the last few score moves in the user's session so the seller page can animate them."""
+    try:
+        from flask import has_request_context, session
+        if not has_request_context() or before is None or after is None:
+            return
+        moves = {k: v for k, v in (session.get('score_moves') or {}).items() if k != seller_id}
+        moves[seller_id] = [round(float(before), 2), round(float(after), 2)]
+        session['score_moves'] = dict(list(moves.items())[-8:])   # keeps the cookie small
+    except Exception:
+        pass
+
+
 def rescore_seller(seller_id):
     from backend.routes.dashboard import get_seller_map, scores_drop, scores_put
 
@@ -61,6 +74,7 @@ def rescore_seller(seller_id):
         return res
     res.rec = scoring.write_single_score(db, seller_id, score, category, model_version())
     scores_put(res.rec)
+    _remember(seller_id, res.before, res.rec.get('WeightedRiskScore'))
     if category == 'High' and (old_rec or {}).get('RiskCategory') != 'High':
         db.collection('alert_log').document().set(
             scoring.high_alert(seller_id, get_seller_map().get(seller_id), res.rec, 1))

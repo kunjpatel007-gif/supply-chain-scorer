@@ -271,10 +271,31 @@ html.hairs .head:not(.bare),html.hairs .sec{border-bottom-color:transparent;posi
   .stars label:hover{transform:translateY(-3px) scale(1.12)}
 }
 
+
+/* score change after a re-score: number thumps, the delta floats up, marker slides from the old spot */
+.moved-wrap{position:relative;display:inline-block}
+.moved{animation:thump .6s var(--bounce) 1.7s}
+@keyframes thump{35%{transform:scale(1.06)}}
+.dpop{position:absolute;left:100%;top:6px;margin-left:10px;font:500 13px var(--mono);letter-spacing:.06em;padding:3px 8px;border:1px solid;white-space:nowrap;
+  opacity:0;animation:dpop 3.2s var(--ease-out) 1.7s forwards}
+.dpop.up{color:var(--rust)}.dpop.down{color:var(--ok)}
+@keyframes dpop{0%{opacity:0;transform:translateY(10px) scale(.7)}10%{opacity:1;transform:none}80%{opacity:1;transform:none}100%{opacity:.55;transform:translateY(-6px)}}
+.mkw[style*="--s0"]{animation:mk-from 1.4s var(--spring) 1.7s both}
+@keyframes mk-from{from{transform:translateX(calc(var(--s0)*1%))}}
+.mk-was{position:absolute;top:-6px;width:0;height:18px;border-left:1px dashed var(--mute);opacity:0;animation:was 3.4s ease 1.7s both}
+@keyframes was{10%,70%{opacity:.8}100%{opacity:.35}}
+
+/* overview "Highest risk": rows slide from where they were on your last visit, with rank badges */
+.rkd{display:inline-block;font:500 11px var(--mono);letter-spacing:.04em;margin-right:10px;vertical-align:middle;animation:rkd .55s var(--bounce) both;animation-delay:var(--dl,1.5s)}
+.rkd.up{color:var(--rust)}.rkd.down{color:var(--ok)}.rkd.new,.rkd.same{color:var(--mute)}
+@keyframes rkd{from{opacity:0;transform:translateY(8px) scale(.6)}}
+tr.moved-row{background:rgba(201,187,160,.05)}
+
 /* ---------- Reduced motion: keep it still ---------- */
 @media (prefers-reduced-motion:reduce){
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .cursor,.scroll-line{display:none}
   .hair{transform:none}
+  .dpop,.mk-was{opacity:1}
 }

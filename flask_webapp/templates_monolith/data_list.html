@@ -5,7 +5,7 @@
 {% block content %}
 <section class="head">
   <div class="rise">
-    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Database</a><span>/</span>{{ t.name }}{% if count is not none and not f and not seller %}<span>·</span><span data-count="{{ count }}">{{ '{:,}'.format(count) }}</span> rows{% endif %}</div>
+    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Records</a><span>/</span>{{ t.name }}{% if count is not none and not f and not seller %}<span>·</span><span data-count="{{ count }}">{{ '{:,}'.format(count) }}</span> rows{% endif %}</div>
     <h1 class="display" style="margin-top:14px">{{ t.label }}</h1>
     {% if f %}
     <div class="filter">where <span class="mono">{{ f }}</span> = {{ m.val(t.field(f), v) }} <a class="x" href="{{ url_for('data.rows', table=t.name) }}" aria-label="Clear filter">clear ✕</a></div>

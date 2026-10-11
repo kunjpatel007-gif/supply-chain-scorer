@@ -45,16 +45,18 @@
       <a class="btn danger" href="{{ url_for('data.remove', table='sellers', doc_id=seller_id) }}">Delete</a>
     </div>
   </div>
-  <div class="rise {{ cat or '' }}" style="--i:1;min-width:380px">
+  <div class="rise {{ cat or '' }}" style="--i:1;min-width:min(380px,100%)">
     <div class="eyebrow live">Risk score</div>
     {% if live_ml_score is not none %}
       <div style="display:flex;align-items:baseline;gap:18px">
-        <div class="serif num cat" style="font-size:112px;line-height:1" data-count="{{ live_ml_score }}" data-dec="1">{{ '%.1f'|format(live_ml_score) }}</div>
+        <div class="moved-wrap"><div class="serif num cat{% if score_before is not none %} moved{% endif %}" style="font-size:112px;line-height:1" data-count="{{ live_ml_score }}" data-dec="1">{{ '%.1f'|format(live_ml_score) }}</div>
+        {%- if score_before is not none %}{% set dlt = live_ml_score - score_before %}<span class="dpop {{ 'up' if dlt > 0 else 'down' }}" aria-label="Changed by {{ '%+.1f'|format(dlt) }} from {{ '%.1f'|format(score_before) }}">{{ '%+.1f'|format(dlt) }}</span>{% endif %}</div>
         <div class="eyebrow cat">{{ live_ml_category }}</div>
       </div>
       <div class="track" aria-hidden="true">
         <i style="width:{{ bands.Medium }}%;background:rgba(201,187,160,.25)"></i><i style="width:{{ bands.High - bands.Medium }}%;background:rgba(168,135,90,.45)"></i><i style="flex:1;background:rgba(194,87,60,.5)"></i>
-        <span class="mkw" style="--s:{{ live_ml_score }}"><span class="mk"></span></span>
+        {% if score_before is not none %}<span class="mk-was" style="left:{{ score_before }}%"></span>{% endif %}
+        <span class="mkw" style="--s:{{ live_ml_score }}{% if score_before is not none %};--s0:{{ score_before }}{% endif %}"><span class="mk"></span></span>
       </div>
       <div class="track-lbl" style="position:relative;height:14px"><span style="position:absolute;left:0">0</span><span style="position:absolute;left:{{ bands.Medium }}%;transform:translateX(-50%)">{{ bands.Medium|int }}</span><span style="position:absolute;left:{{ bands.High }}%;transform:translateX(-50%)">{{ bands.High|int }}</span><span style="position:absolute;right:0">100</span></div>
     {% elif features.total_orders %}

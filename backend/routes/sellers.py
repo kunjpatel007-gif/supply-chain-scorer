@@ -3,7 +3,7 @@ routes/sellers.py
 -----------------
 Seller details, search, and add / edit / delete.
 """
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from backend import crud
@@ -106,6 +106,15 @@ def seller(seller_id):
         live_score, live_category = predict_one(row[FEATURE_COLS])
     card = model_card()
 
+    # score before the last re-score of this seller in this session (animates the change once)
+    score_before = None
+    moves = session.get('score_moves') or {}
+    if seller_id in moves:
+        before = moves.pop(seller_id)[0]
+        session['score_moves'] = moves
+        if live_score is not None and abs(live_score - before) >= 0.05:
+            score_before = before
+
     history = []
     for h in db.collection('risk_scores').where(filter=FieldFilter('SellerID', '==', seller_id)).stream():
         d = h.to_dict() or {}
@@ -127,6 +136,7 @@ def seller(seller_id):
         seller_info=seller_info,
         live_ml_category=live_category,
         live_ml_score=live_score,
+        score_before=score_before,
         bands=(card or {}).get('bands', {'Medium': 40.0, 'High': 60.0}),
         features=features,
         defects=defect_breakdown(frames, seller_id),

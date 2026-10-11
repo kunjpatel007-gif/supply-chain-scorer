@@ -235,4 +235,37 @@
   });
   d.addEventListener('submit', pending);
   addEventListener('pageshow', () => { clearTimeout(pend); root.classList.remove('nav-pending', 'is-busy'); d.querySelectorAll('.is-busy').forEach(b => b.classList.remove('is-busy')); });
+
+  /* Overview "Highest risk": compare with the list this browser saw last time. Rows that moved
+     start at their old place and slide to the new one after the wipe; ▲N / ▼N badges say how far. */
+  const top = [...d.querySelectorAll('tr[data-top]')];
+  if (top.length) {
+    let seen = null;
+    try { seen = JSON.parse(localStorage.getItem('nx-top') || 'null'); } catch (e) {}
+    try { localStorage.setItem('nx-top', JSON.stringify(Object.fromEntries(top.map((r, i) => [r.dataset.top, [i, +r.dataset.score]])))); } catch (e) {}
+    if (seen) {
+      const h = top[0].getBoundingClientRect().height, slides = [];
+      top.forEach((r, i) => {
+        const was = seen[r.dataset.top], sc = r.querySelector('.sc');
+        let txt = '', cls = '';
+        if (!was) { txt = 'NEW'; cls = 'new'; }
+        else if (was[0] !== i) { const n = was[0] - i; txt = (n > 0 ? '▲' : '▼') + Math.abs(n); cls = n > 0 ? 'up' : 'down'; }
+        else if (Math.abs(was[1] - r.dataset.score) >= 0.05) { const n = r.dataset.score - was[1]; txt = (n > 0 ? '+' : '') + n.toFixed(1); cls = 'same'; }
+        if (!txt) return;
+        r.classList.add('moved-row');
+        const b = d.createElement('span'); b.className = 'rkd ' + cls; b.textContent = txt;
+        b.style.setProperty('--dl', reduce ? '0s' : (1.5 + i * 0.05) + 's');
+        sc.prepend(b);
+        if (!reduce) {
+          const dy = was ? (was[0] - i) * h : (top.length - i) * h;   // new rows come up from below the list
+          if (dy) { r.style.translate = `0 ${dy}px`; slides.push([r, dy, !was]); }
+        }
+      });
+      if (slides.length) setTimeout(() => slides.forEach(([r, dy, fresh], k) => {
+        r.style.translate = '';
+        r.animate([{ translate: `0 ${dy}px`, opacity: fresh ? 0 : 1 }, { translate: '0 0', opacity: 1 }],
+                  { duration: 800, delay: k * 40, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }), 1300);
+    }
+  }
 })();

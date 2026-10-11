@@ -7,7 +7,7 @@
 {% set nxt = request.args.get('next') or (values.get('next') if values else none) %}
 <section class="head">
   <div class="rise">
-    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Database</a><span>/</span><a href="{{ url_for('data.rows', table=t.name) }}">{{ t.name }}</a><span>/</span>{% if creating %}new{% else %}<span class="mono" style="letter-spacing:0;text-transform:none">{{ doc_id|short(16) }}</span>{% endif %}</div>
+    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Records</a><span>/</span><a href="{{ url_for('data.rows', table=t.name) }}">{{ t.name }}</a><span>/</span>{% if creating %}new{% else %}<span class="mono" style="letter-spacing:0;text-transform:none">{{ doc_id|short(16) }}</span>{% endif %}</div>
     <h1 class="display rec" style="margin-top:14px">{% if creating %}New <i>{{ t.one }}</i>{% else %}Edit <i>{{ m.title(t, doc_id, row) }}</i>{% endif %}</h1>
   </div>
 </section>

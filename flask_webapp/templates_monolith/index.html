@@ -43,11 +43,11 @@
       <thead><tr><th>#</th><th>Seller</th><th class="hide-sm">Trend</th><th class="r">Score</th></tr></thead>
       <tbody>
       {% for s in top_risky %}
-      <tr class="link wipe {{ s[3] }}" style="--i:{{ loop.index0 }}">
+      <tr class="link wipe {{ s[3] }}" style="--i:{{ loop.index0 }}" data-top="{{ s[0] }}" data-score="{{ '%.1f'|format(s[2]) }}">
         <td class="rk">{{ '%02d'|format(loop.index) }}</td>
         <td><a class="row-link" href="{{ url_for('sellers.seller', seller_id=s[0]) }}" data-sid="{{ s[0] }}">{{ s[1] }}</a><div class="id">{{ s[0][:20] }}…</div></td>
         <td class="trend {{ s[4] }} hide-sm">{{ s[4] }}</td>
-        <td class="sc num">{{ '%.1f'|format(s[2]) }}</td>
+        <td class="sc"><span class="num">{{ '%.1f'|format(s[2]) }}</span></td>
       </tr>
       {% endfor %}
       </tbody>

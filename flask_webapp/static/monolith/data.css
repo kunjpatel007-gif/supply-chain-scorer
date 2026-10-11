@@ -144,3 +144,8 @@ html:not(.motion) .hold .fill{display:none}
 
 .display.rec{font-size:clamp(40px,4.6vw,62px)}
 .quickrow .seg.quick{margin-top:2px}
+@media(max-width:560px){
+  .scoreform{flex-wrap:wrap;width:100%}.scoreform .cb{width:100%}
+  /* links inside table cells get a taller tap area without changing row height */
+  .rows a.fk{display:inline-block;padding:10px 0;margin:-10px 0}
+}
