@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Overview · NexusRisk{% endblock %}
+{% block content %}
+{% set counts = category_counts or {} %}
+{% set scored = (counts.get('High',0) + counts.get('Medium',0) + counts.get('Low',0)) %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow {{ 'live' if period else '' }}">{% if period %}Period {{ period }}{% else %}Not scored yet{% endif %}</div>
+    <h1 class="display" style="margin-top:14px">Risk overview</h1>
+  </div>
+  <div class="stats">
+    {% for c in ['High','Medium','Low'] %}
+    <a class="stat {{ c }} rise" style="--i:{{ loop.index }}" href="{{ url_for('dashboard.category_list', risk_level=c|lower) }}">
+      <div class="eyebrow">{{ c }}{% if c=='High' %} ≥ {{ bands.High|int }}{% elif c=='Medium' %} {{ bands.Medium|int }}–{{ bands.High|int }}{% else %} &lt; {{ bands.Medium|int }}{% endif %}</div>
+      <div class="n num cat" data-count="{{ counts.get(c,0) }}" style="view-transition-name:stat-{{ c }};view-transition-class:morph">{{ '{:,}'.format(counts.get(c,0)) }}</div>
+      <div class="p">{% if scored %}{{ '%.1f'|format(counts.get(c,0) / scored * 100) }}%{% endif %}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if histogram %}
+{% set hmax = histogram|max %}
+<section class="sec">
+  <div class="eyebrow"><span>Score distribution · {{ '{:,}'.format(histogram|sum) }} sellers</span><span></span></div>
+  <div class="hist" role="img" aria-label="Histogram of seller risk scores">
+    {% for n in histogram %}{% set lo = loop.index0 * 2 %}
+    {% set band = 'High' if lo >= bands.High else ('Medium' if lo >= bands.Medium else 'Low') %}
+    <div class="b {{ band }}" style="--i:{{ loop.index0 }};height:{{ (n / hmax * 100) if hmax else 0 }}%" data-t="{{ lo }}–{{ lo + 2 }}: {{ n }} sellers"></div>
+    {% endfor %}
+    <i class="scan" aria-hidden="true"></i>
+    <div class="thr" style="left:{{ bands.Medium }}%"><span>{{ bands.Medium|int }} · Medium</span></div>
+    <div class="thr" style="left:{{ bands.High }}%"><span>{{ bands.High|int }} · High</span></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="sec grid2">
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Highest risk</div>
+    {% if top_risky %}
+    <table class="rows">
+      <thead><tr><th>#</th><th>Seller</th><th class="hide-sm">Trend</th><th class="r">Score</th></tr></thead>
+      <tbody>
+      {% for s in top_risky %}
+      <tr class="link wipe {{ s[3] }}" style="--i:{{ loop.index0 }}">
+        <td class="rk">{{ '%02d'|format(loop.index) }}</td>
+        <td><a class="row-link" href="{{ url_for('sellers.seller', seller_id=s[0]) }}" data-sid="{{ s[0] }}">{{ s[1] }}</a><div class="id">{{ s[0][:20] }}…</div></td>
+        <td class="trend {{ s[4] }} hide-sm">{{ s[4] }}</td>
+        <td class="sc num">{{ '%.1f'|format(s[2]) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="mute" style="margin-top:20px">No scores yet. Run the pipeline job to score sellers.</p>{% endif %}
+  </div>
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Latest alerts</div>
+    {% if recent_alerts %}
+    <table class="rows">
+      <thead><tr><th>Seller</th><th class="r">Score</th><th class="r">Date</th></tr></thead>
+      <tbody>
+      {% for a in recent_alerts %}
+      <tr class="link wipe High" style="--i:{{ loop.index0 + 3 }}">
+        <td style="padding:12px 0"><a class="row-link" href="{{ url_for('sellers.seller', seller_id=a[0]) }}">{{ a[1] }}</a></td>
+        <td class="r mono" style="color:var(--rust)">{% if a|length > 4 and a[4] is not none %}{{ '%.1f'|format(a[4]) }}{% endif %}</td>
+        <td class="r id">{{ a[3].strftime('%d %b %Y') if a[3] else '' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="mute" style="margin-top:20px">No alerts.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

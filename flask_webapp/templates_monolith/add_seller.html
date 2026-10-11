@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Add seller · NexusRisk{% endblock %}
+{% block content %}
+<section class="head"><div class="rise"><div class="eyebrow">New record</div><h1 class="display" style="margin-top:14px">Add a seller</h1></div></section>
+<section class="sec" style="max-width:560px">
+  <form method="POST" class="rise" style="--i:1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field"><span class="eyebrow">Seller ID</span><input type="text" name="seller_id" required autofocus pattern="[A-Za-z0-9_\-]{3,64}" title="3–64 letters, numbers, - or _" value="{{ request.form.get('seller_id','') }}"></label>
+    <label class="field"><span class="eyebrow">Name</span><input type="text" name="name" required value="{{ request.form.get('name','') }}"></label>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px">
+      <label class="field"><span class="eyebrow">City</span><input type="text" name="city" value="{{ request.form.get('city','') }}"></label>
+      <label class="field"><span class="eyebrow">State</span><input type="text" name="state" maxlength="2" value="{{ request.form.get('state','') }}"></label>
+    </div>
+    <div style="display:flex;gap:12px"><button class="btn" type="submit">Add seller</button><a class="btn ghost" href="{{ url_for('dashboard.index') }}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

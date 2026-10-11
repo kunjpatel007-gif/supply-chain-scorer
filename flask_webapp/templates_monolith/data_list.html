@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}{{ t.label }} · NexusRisk{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ asset('monolith/data.css') }}">{% endblock %}
+{% block content %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Database</a><span>/</span>{{ t.name }}{% if count is not none and not f and not seller %}<span>·</span><span data-count="{{ count }}">{{ '{:,}'.format(count) }}</span> rows{% endif %}</div>
+    <h1 class="display" style="margin-top:14px">{{ t.label }}</h1>
+    {% if f %}
+    <div class="filter">where <span class="mono">{{ f }}</span> = {{ m.val(t.field(f), v) }} <a class="x" href="{{ url_for('data.rows', table=t.name) }}" aria-label="Clear filter">clear ✕</a></div>
+    {% elif seller %}
+    <div class="filter">orders with a line from <a class="fk" href="{{ url_for('sellers.seller', seller_id=seller) }}">{{ names.sellers.get(seller) or seller }}</a> · {{ '{:,}'.format(total) }} <a class="x" href="{{ url_for('data.rows', table=t.name) }}" aria-label="Clear filter">clear ✕</a></div>
+    {% endif %}
+  </div>
+  <div class="actions rise" style="--i:1">
+    {% if t.key_kind == 'model' %}
+    <form method="POST" action="{{ url_for('data.score') }}" class="scoreform">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="cb" data-mode="fill"><input type="hidden" name="SellerID" data-cb-value value="{{ v if f == 'SellerID' else '' }}" required><input type="text" placeholder="Seller to score now" autocomplete="off" aria-label="Seller to score" value="{{ (names.sellers.get(v) ~ ' — ' ~ v) if f == 'SellerID' and names.sellers.get(v) else '' }}"></div>
+      <button class="btn" type="submit">Score now</button>
+    </form>
+    {% else %}
+    {% set pre = {f: v} if f else ({'seller': seller} if seller else {}) %}
+    <a class="btn" href="{{ url_for('data.create', table=t.name, **pre) }}">New {{ t.one }}</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="sec">
+{% if page.rows %}
+  {% if t.name == 'purchase_orders' %}
+  <div class="scroll-x"><table class="rows dl">
+    <thead><tr><th>Order</th><th>Ordered</th><th>Status</th><th>Seller</th><th class="r">Items</th><th class="r">Value</th><th class="r hide-sm">Delivery</th><th class="r hide-sm">Stars</th></tr></thead>
+    <tbody>
+    {% for id, r in page.rows %}{% set s = summaries.get(id, {}) %}
+    <tr class="link{{ ' wipe' if loop.index <= 14 }}" style="--i:{{ loop.index0 }}">
+      <td><a class="row-link" href="{{ url_for('data.record', table=t.name, doc_id=id) }}" aria-label="Open order {{ id }}"></a><span class="mono" data-vt="{{ url_for('data.record', table=t.name, doc_id=id) }}">{{ id|short(8) }}</span></td>
+      <td class="nowrap">{{ m.val(t.field('orderDate'), r.get('orderDate')) }}</td>
+      <td>{{ m.val(t.field('orderStatus'), r.get('orderStatus')) }}</td>
+      <td>{% for sid in s.sellers or [] %}<a class="fk" href="{{ url_for('sellers.seller', seller_id=sid) }}">{{ names.sellers.get(sid) or sid|short }}</a>{{ ', ' if not loop.last }}{% else %}<span class="faint">no lines</span>{% endfor %}</td>
+      <td class="r mono">{{ s['items'] or 0 }}</td>
+      <td class="r mono nowrap">{{ ('R$ ' ~ '{:,.2f}'.format(s.value)) if s.value else '—' }}</td>
+      <td class="r hide-sm">{% if s.delay is not none %}{{ m.val(TABLES.deliveries.field('delayDays'), s.delay) }}{% else %}<span class="faint">—</span>{% endif %}</td>
+      <td class="r hide-sm">{% if s.stars is not none %}<span class="st">{{ '★' * (s.stars|round|int) }}</span>{% else %}<span class="faint">—</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  {{ m.table(t, page.rows) }}
+  {% endif %}
+  <nav class="pager" aria-label="Pages">
+    {% if seller %}
+      {% if page.page > 1 %}<a class="btn ghost" href="{{ url_for('data.rows', table=t.name, seller=seller, page=page.page - 1) }}">← Newer</a>{% endif %}
+      <span class="mono mute">page {{ page.page }} of {{ page.pages }}</span>
+      {% if page.page < page.pages %}<a class="btn ghost" href="{{ url_for('data.rows', table=t.name, seller=seller, page=page.page + 1) }}">Older →</a>{% endif %}
+    {% else %}
+      {% if request.args.get('after') %}<a class="btn ghost" href="{{ url_for('data.rows', table=t.name, f=f, v=v) }}">← First page</a>{% endif %}
+      <span class="mono mute">{{ page.rows|length }} rows{% if t.sort and not f %} · newest first{% endif %}</span>
+      {% if page.next %}<a class="btn ghost" href="{{ url_for('data.rows', table=t.name, f=f, v=v, after=page.next) }}">Next {{ page.rows|length }} →</a>{% endif %}
+    {% endif %}
+  </nav>
+{% else %}
+  <p class="mute">No rows{% if f %} where {{ f }} = {{ v }}{% elif seller %} for this seller{% endif %} yet.</p>
+{% endif %}
+</section>
+{% endblock %}

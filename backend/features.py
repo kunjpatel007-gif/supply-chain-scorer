@@ -32,8 +32,8 @@ FRAME_COLUMNS = {
     'sellers': ['sellerId', 'sellerName', 'sellerCity', 'sellerState'],
     'po_lines': ['poId', 'sellerId', 'lineNo', 'productId', 'unitPriceAtOrder', 'freightValue'],
     'purchase_orders': ['poId', 'orderDate'],
-    'deliveries': ['poId', 'delayDays'],
-    'quality_inspections': ['poId', 'reviewScore', 'vaderSeverityWeight', 'defectTypeId'],
+    'deliveries': ['poId', 'delayDays', 'actualDeliveryDate'],
+    'quality_inspections': ['poId', 'reviewScore', 'vaderSeverityWeight', 'defectTypeId', 'inspectionDate'],
     'defect_types': ['defectTypeId', 'category', 'severity'],
 }
 
@@ -80,6 +80,14 @@ def compute_seller_features(frames, start=None, end=None):
         if end is not None:
             mask &= orders['orderDate'] < pd.Timestamp(end)
         lines = lines[lines['poId'].isin(set(orders.loc[mask, 'poId']))]
+        if end is not None:
+            # No look-ahead: a delivery or review only counts if it had happened by the cutoff
+            # (rows without a date are kept, as before).
+            def known(df, col):
+                t = pd.to_datetime(df[col], utc=True, errors='coerce').dt.tz_localize(None)
+                return df[t.isna() | (t < pd.Timestamp(end))]
+            deliveries = known(deliveries, 'actualDeliveryDate')
+            qi = known(qi, 'inspectionDate')
 
     for col in ('unitPriceAtOrder', 'freightValue'):
         lines[col] = pd.to_numeric(lines[col], errors='coerce')
@@ -223,18 +231,27 @@ def fetch_frames(db, seller_id=None, include_orders=False):
     po_ids = sorted({(d.to_dict() or {}).get('poId') for d in lines} - {None})
 
     def by_po(coll):
-        chunks = [po_ids[i:i + 30] for i in range(0, len(po_ids), 30)]  # 'in' takes max 30 values
+        """Rows of coll for this seller's orders. Rows tagged with sellerIds come back in ONE query;
+        only untagged leftovers (older data, not yet backfilled) need the slower per-order lookups."""
+        tagged = list(db.collection(coll).where(filter=_field_filter('sellerIds', 'array_contains', seller_id)).stream())
+        mine = set(po_ids)
+        tagged = [d for d in tagged if (d.to_dict() or {}).get('poId') in mine]   # ignore stale tags
+        seen = {(d.to_dict() or {}).get('poId') for d in tagged}
+        rest = [p for p in po_ids if p not in seen]
+        chunks = [rest[i:i + 30] for i in range(0, len(rest), 30)]   # 'in' takes max 30 values
 
         def run(chunk):
             return list(db.collection(coll).where(filter=_field_filter('poId', 'in', chunk)).stream())
 
-        # Big sellers need many lookups; run them side by side instead of one after another.
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            docs = [d for part in pool.map(run, chunks) for d in part]
+        docs = list(tagged)
+        if chunks:
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                docs += [d for part in pool.map(run, chunks) for d in part]
         return _docs_to_df(docs)
 
-    frames['deliveries'] = by_po('deliveries')
-    frames['quality_inspections'] = by_po('quality_inspections')
+    with ThreadPoolExecutor(max_workers=2) as pool:          # deliveries and reviews side by side
+        dl, qi = pool.map(by_po, ('deliveries', 'quality_inspections'))
+    frames['deliveries'], frames['quality_inspections'] = dl, qi
     return frames
 
 

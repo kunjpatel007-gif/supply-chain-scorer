@@ -85,11 +85,32 @@ class Query:
                 return v > value
             if op == 'in':
                 return v in value
+            if op == 'array_contains':
+                return isinstance(v, list) and value in v
         except TypeError:
             return False
         raise NotImplementedError(op)
 
     def stream(self, timeout=None):
+        items = self._items()
+        self._db.reads += len(items)
+        return iter([Snapshot(DocRef(self._db, self._coll, i), dict(d)) for i, d in items])
+
+    def count(self, alias=None):
+        """Aggregation query: .get() -> [[result]] with result.value, like the real client."""
+        query = self
+
+        class _Result:
+            def __init__(self, value):
+                self.alias, self.value = alias or 'field_1', value
+
+        class _Count:
+            def get(self, **kw):
+                query._db.reads += 1
+                return [[_Result(len(query._items()))]]
+        return _Count()
+
+    def _items(self):
         store = self._db._data.get(self._coll, {})
         items = [(i, d) for i, d in store.items()
                  if all(self._match(d, *f) for f in self._filters)]
@@ -106,8 +127,7 @@ class Query:
             items = items[ids.index(self._after) + 1:] if self._after in ids else items
         if self._limit is not None:
             items = items[:self._limit]
-        self._db.reads += len(items)
-        return iter([Snapshot(DocRef(self._db, self._coll, i), dict(d)) for i, d in items])
+        return items
 
     def get(self, timeout=None):
         return list(self.stream())
@@ -152,6 +172,11 @@ class FakeFirestore:
 
     def batch(self):
         return Batch()
+
+    def get_all(self, references, field_paths=None):
+        for ref in references:
+            self.reads += 1
+            yield ref.get()
 
     def docs(self, coll):
         return self._data.get(coll, {})

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Model · NexusRisk{% endblock %}
+{% set LABELS = {'total_orders':'Orders','total_items':'Items sold','unique_products':'Products','avg_price':'Avg price','avg_freight':'Avg freight','price_volatility':'Price spread','avg_delay_days':'Avg delivery vs promise','max_delay_days':'Worst delivery','pct_late_deliveries':'Late deliveries','avg_review_score':'Avg review','negative_review_rate':'Reviews ≤ 3 stars','n_reviews':'Reviews counted','defect_rate':'Defect severity / order'} %}
+{% block content %}
+{% if not card %}
+<section class="head"><div><div class="eyebrow">Model</div><h1 class="display" style="margin-top:14px">Not trained yet</h1>
+<p class="mute" style="margin-top:16px">Run <span class="mono">training/build_dataset.py</span> then <span class="mono">training/train_xgboost.py</span>.</p></div></section>
+{% else %}
+{% set m = card.test_metrics or {} %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow">Model {{ card.model_version }}{% if card.trained_at %} · trained {{ card.trained_at[:10] }}{% endif %}</div>
+    <h1 class="display" style="margin-top:14px;max-width:780px;font-size:clamp(30px,3.4vw,44px);line-height:1.12">{{ card.question or 'Seller risk model' }}</h1>
+  </div>
+  {% if m %}<div class="stats">
+    <div class="stat rise" style="--i:1"><div class="eyebrow">Test AUC</div><div class="n num" data-count="{{ m.auc }}" data-dec="2">{{ '%.2f'|format(m.auc) }}</div><div class="p">0.50 = coin flip</div></div>
+    <div class="stat rise" style="--i:2"><div class="eyebrow">PR-AUC</div><div class="n num" data-count="{{ m.pr_auc }}" data-dec="2">{{ '%.2f'|format(m.pr_auc) }}</div><div class="p">random = {{ '%.2f'|format(m.positive_rate) }}</div></div>
+  </div>{% endif %}
+</section>
+
+{% if m and card.test_bands %}
+
+<section class="sec grid2">
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Against simpler rules · AUC on the held-out period</div>
+    {% set rules = [('This model', m.auc), ('Past share of reviews ≤ 3 stars', m.baseline_auc_negative_review_rate), ('Past share of late deliveries', m.baseline_auc_pct_late), ('Coin flip', 0.5)] %}
+    <table class="rows"><tbody>
+    {% for name, v in rules %}
+      <tr><td style="width:42%">{{ name }}</td>
+        <td><div style="height:8px;width:{{ (v - 0.4) / 0.4 * 100 }}%;background:{{ 'var(--rust)' if loop.first else 'var(--line2)' }};transform-origin:left;animation:growx .9s cubic-bezier(.2,.7,.2,1) both;animation-delay:{{ 300 + loop.index0 * 100 }}ms"></div></td>
+        <td class="r mono" style="width:70px">{{ '%.2f'|format(v) }}</td></tr>
+    {% endfor %}
+    </tbody></table>
+    <p class="eyebrow" style="margin-top:12px;text-transform:none;letter-spacing:.04em">Bars start at 0.40.</p>
+  </div>
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">How each band did on the held-out period</div>
+    <table class="rows"><thead><tr><th>Band</th><th class="r">Sellers</th><th class="r">Landed in worst 25%</th><th class="r hide-sm">Bad orders</th></tr></thead><tbody>
+    {% for b in ['Low','Medium','High'] %}{% set t = card.test_bands.get(b) %}{% if t %}
+      <tr class="{{ b }}"><td class="cat">{{ b }}</td><td class="r mono">{{ t.sellers|int }}</td><td class="r serif cat" style="font-size:28px">{{ '%.0f'|format(t.landed_in_worst_25pct * 100) }}%</td><td class="r mono hide-sm">{{ '%.0f'|format(t.avg_future_bad_rate * 100) }}%</td></tr>
+    {% endif %}{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+{% endif %}
+
+{% if card.feature_impact %}
+{% set imax = card.feature_impact.values()|max %}
+<section class="sec">
+  <div class="eyebrow"><span>What the model leans on · share of total influence</span><span>mean |SHAP|{% if card.train_rows %} over {{ '{:,}'.format(card.train_rows + card.test_rows) }} rows{% endif %}</span></div>
+  <table class="rows"><tbody>
+  {% for f, v in card.feature_impact.items() %}
+    <tr><td style="width:30%">{{ LABELS.get(f, f) }}</td><td class="id hide-sm" style="width:22%">{{ f }}</td>
+      <td><div style="height:8px;width:{{ v / imax * 100 }}%;background:var(--sand);transform-origin:left;animation:growx .9s cubic-bezier(.2,.7,.2,1) both;animation-delay:{{ 200 + loop.index0 * 50 }}ms"></div></td>
+      <td class="r mono" style="width:70px">{{ '%.1f'|format(v * 100) }}%</td></tr>
+  {% endfor %}
+  </tbody></table>
+</section>
+{% endif %}
+
+<section class="sec grid2">
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Training data</div>
+    <table class="rows"><tbody>
+      {% if card.train_rows %}<tr><td>Training rows</td><td class="r mono">{{ '{:,}'.format(card.train_rows) }}</td></tr>
+      <tr><td>Held-out test rows</td><td class="r mono">{{ '{:,}'.format(card.test_rows) }}</td></tr>{% endif %}
+      {% if card.cutoffs %}<tr><td>Cutoff dates</td><td class="r mono" style="font-size:12px">{{ card.cutoffs[0] }} … {{ card.cutoffs[-1] }} ({{ card.cutoffs|length }})</td></tr>{% endif %}
+      <tr><td>Score bands</td><td class="r mono">Medium ≥ {{ card.bands.Medium|int }} · High ≥ {{ card.bands.High|int }}</td></tr>
+      {% if meta and meta.period %}<tr><td>Last scored period</td><td class="r mono">{{ meta.period }}{% if meta.sellers_scored %} · {{ '{:,}'.format(meta.sellers_scored) }} sellers{% endif %}</td></tr>{% endif %}
+    </tbody></table>
+  </div>
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">XGBoost settings</div>
+    <table class="rows"><tbody>
+    {% for k in ['n_estimators','max_depth','learning_rate','subsample','colsample_bytree','min_child_weight','scale_pos_weight'] %}{% if card.params and k in card.params %}
+      <tr><td class="mono" style="font-size:13px">{{ k }}</td><td class="r mono">{{ card.params[k] }}</td></tr>
+    {% endif %}{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

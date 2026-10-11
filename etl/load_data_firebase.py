@@ -31,7 +31,9 @@ def init_firebase():
 def clean_dict(d):
     cleaned = {}
     for k, v in d.items():
-        if pd.isna(v):
+        if isinstance(v, (list, tuple)):
+            cleaned[k] = list(v)
+        elif pd.isna(v):
             cleaned[k] = None
         elif isinstance(v, pd.Timestamp):
             cleaned[k] = v.to_pydatetime()
@@ -67,10 +69,15 @@ def batch_write(db, collection_name, records, doc_id_field=None):
     if count % 500 != 0:
         batch.commit()
 
-def delete_collection(coll_ref, batch_size=500):
+def _order_sellers(items_df):
+    """{order_id: [seller ids]} so deliveries and reviews can be fetched per seller in one query."""
+    return items_df.groupby('order_id')['seller_id'].agg(lambda x: sorted(set(x))).to_dict()
+
+
+def delete_collection(db, coll_ref, batch_size=500):
     docs = list(coll_ref.limit(batch_size).stream())
     while docs:
-        batch = coll_ref.firestore.batch()
+        batch = db.batch()
         for doc in docs:
             batch.delete(doc.reference)
         batch.commit()
@@ -95,7 +102,7 @@ def main():
         print("Clearing existing data (--replace)...")
         for coll in colls_to_clear:
             print(f"Deleting {coll}...")
-            delete_collection(db.collection(coll))
+            delete_collection(db, db.collection(coll))
 
     target_collections = [args.collection] if args.collection else COLLECTIONS
 
@@ -184,6 +191,7 @@ def main():
             'order_delivered_carrier_date': 'deliveredCarrierDate',
             'order_delivered_customer_date': 'actualDeliveryDate'
         })[['deliveryId', 'poId', 'deliveredCarrierDate', 'actualDeliveryDate', 'sellerDispatchDelayDays', 'carrierTransitDelayDays', 'delayDays']]
+        del_data['sellerIds'] = del_data['poId'].map(_order_sellers(order_items_df))   # one-query loads per seller
         batch_write(db, 'deliveries', del_data.to_dict('records'))
 
     # 6. quality_inspections
@@ -211,6 +219,7 @@ def main():
             'review_comment_title': 'reviewCommentTitle',
             'review_comment_message': 'reviewCommentMessage'
         })[['inspectionId', 'poId', 'inspectionDate', 'reviewScore', 'rejectionFlag', 'reviewAnswerTimestamp', 'reviewCommentTitle', 'reviewCommentMessage', 'defectTypeId', 'vaderSeverityWeight']]
+        qi_data['sellerIds'] = qi_data['poId'].map(_order_sellers(order_items_df))
         batch_write(db, 'quality_inspections', qi_data.to_dict('records'))
 
     # 7. price_history

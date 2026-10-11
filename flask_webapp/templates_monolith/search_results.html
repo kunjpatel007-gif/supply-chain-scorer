@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Search · NexusRisk{% endblock %}
+{% block content %}
+<section class="head">
+  <div class="rise"><div class="eyebrow">Search</div><h1 class="display" style="margin-top:14px">“{{ query }}”</h1></div>
+  <div class="stat rise" style="--i:1;border:0"><div class="n num">{{ results|length }}</div><div class="p">{{ 'match' if results|length == 1 else 'matches' }}</div></div>
+</section>
+<section class="sec">
+{% if results %}
+<div class="list search">
+  <div class="lhead"><span>Seller</span><span class="hide-sm">ID</span><span>Band</span><span class="r">Score</span></div>
+  {% for chunk in results|batch(40) %}{% set c0 = loop.index0 * 40 %}
+  <div class="chunk" style="contain-intrinsic-size:auto {{ chunk|length * 53 }}px">
+    {% for r in chunk %}{% set n = c0 + loop.index %}{% set sc = r[4] if r|length > 4 else none %}
+    <a class="lrow {{ sc[1] if sc else '' }}{% if n <= 14 %} wipe{% endif %}" href="{{ url_for('sellers.seller', seller_id=r[0]) }}" data-sid="{{ r[0] }}" style="--i:{{ n - 1 }}">
+      <span class="nm">{{ r[1] }}</span>
+      <span class="id hide-sm">{{ r[0] }}</span>
+      <span class="cat">{{ sc[1] if sc else '—' }}</span>
+      <span class="sc num">{{ '%.1f'|format(sc[0]) if sc else '' }}</span>
+    </a>{% endfor %}
+  </div>{% endfor %}
+</div>
+{% else %}<p class="mute">No seller matches. Try part of a city name or the first characters of an ID.</p>{% endif %}
+</section>
+{% endblock %}

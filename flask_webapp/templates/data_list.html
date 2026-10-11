@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}{{ t.label }} · NexusRisk{% endblock %}
+{% block actions %}<a class="pill" href="{{ url_for('data.index') }}"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Records</span></a>
+{% if t.key_kind != 'model' %}<a class="pill on" href="{{ url_for('data.create', table=t.name, **({f: v} if f else ({'seller': seller} if seller else {}))) }}"><span>New {{ t.one }}</span></a>{% endif %}{% endblock %}
+{% block content %}
+<div class="head rise"><div><h1>{{ t.label }}</h1>
+  {% if f %}<div class="meta">where {{ f }} = {{ v }} · <a href="{{ url_for('data.rows', table=t.name) }}" style="text-decoration:underline">clear</a></div>
+  {% elif seller %}<div class="meta">orders of {{ names.sellers.get(seller) or seller }} · {{ total }}</div>{% endif %}</div>
+  {% if t.key_kind == 'model' %}<form method="POST" action="{{ url_for('data.score') }}" style="display:flex;gap:.5rem"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="SellerID" placeholder="Seller ID to score" required><button class="btn sm" style="margin:0" type="submit">Score now</button></form>{% endif %}
+</div>
+{{ m.table(t, page.rows) }}
+<div style="display:flex;gap:.6rem;margin-top:1.5rem">
+{% if seller %}
+  {% if page.page > 1 %}<a class="pill" href="{{ url_for('data.rows', table=t.name, seller=seller, page=page.page - 1) }}">← Newer</a>{% endif %}
+  {% if page.page < page.pages %}<a class="pill" href="{{ url_for('data.rows', table=t.name, seller=seller, page=page.page + 1) }}">Older →</a>{% endif %}
+{% else %}
+  {% if request.args.get('after') %}<a class="pill" href="{{ url_for('data.rows', table=t.name, f=f, v=v) }}">← First page</a>{% endif %}
+  {% if page.next %}<a class="pill" href="{{ url_for('data.rows', table=t.name, f=f, v=v, after=page.next) }}">Next →</a>{% endif %}
+{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{# Shared pieces for the /data pages. Import with context: {% import "_data_macros.html" as m with context %} #}
+
+{% macro title(t, id, r) -%}
+{%- if t.name == 'purchase_orders' -%}Order {{ id|short(8) }}
+{%- elif t.name == 'po_lines' -%}Line {{ r.lineNo if r.lineNo is not none else '?' }} of order {{ (r.poId or '')|short(8) }}
+{%- elif t.name == 'deliveries' -%}Delivery {{ r.deliveryId if r.deliveryId is not none else id|short(8) }}
+{%- elif t.name == 'quality_inspections' -%}{{ r.reviewScore|int if r.reviewScore is not none else '?' }}-star review
+{%- elif t.name == 'defect_types' -%}{{ r.category or id }}
+{%- elif t.name == 'products' -%}Product {{ id|short(8) }}
+{%- elif t.name == 'price_history' -%}Price record {{ r.priceRecordId if r.priceRecordId is not none else id|short(8) }}
+{%- elif t.name == 'risk_scores' -%}{{ names.sellers.get(r.SellerID) or r.SellerID }} · {{ r.EvaluationPeriod }}
+{%- elif t.name == 'alert_log' -%}Alert · {{ names.sellers.get(r.SellerID) or r.SellerID }}
+{%- elif t.name == 'sellers' -%}{{ r.sellerName or id }}
+{%- else -%}{{ id }}{%- endif -%}
+{%- endmacro %}
+
+{# One stored value, as it reads in a table cell or on a record page. Foreign keys link to their row. #}
+{% macro val(f, v) -%}
+{%- if v is none or v != v -%}<span class="faint">—</span>
+{%- elif f.ref == 'sellers' -%}<a class="fk" href="{{ url_for('sellers.seller', seller_id=v) }}">{{ names.sellers.get(v) or v|short }}</a>
+{%- elif f.ref == 'defect_types' -%}<a class="fk" href="{{ url_for('data.record', table='defect_types', doc_id=v|int) }}">{{ names.defect_types.get(v|int) or v }}</a>
+{%- elif f.ref -%}<a class="fk mono" href="{{ url_for('data.record', table=f.ref, doc_id=v) }}">{{ v|short }}</a>
+{%- elif f.kind == 'stars' -%}<span class="st" aria-label="{{ v|int }} of 5 stars">{{ v|cell(f) }}</span>
+{%- elif f.name in ('RiskCategory', 'ThresholdCrossedCategory') -%}<span class="cat {{ v }}">{{ v }}</span>
+{%- elif f.name == 'RiskTrend' -%}<span class="trend {{ v }}">{{ v }}</span>
+{%- elif f.name in ('orderStatus', 'AlertStatus') -%}<span class="pill-s s-{{ v|lower }}">{{ v }}</span>
+{%- elif f.name == 'rejectionFlag' -%}<span class="{{ 'neg' if v == 'Negative' else 'pos' }}">{{ v }}</span>
+{%- elif f.name == 'WeightedRiskScore' -%}<span class="num">{{ '%.1f'|format(v) }}</span>
+{%- elif f.name == 'delayDays' -%}<span class="{{ 'neg' if v > 0 else 'pos' }}">{{ v|abs }} d {{ 'late' if v > 0 else ('early' if v < 0 else 'on time') }}</span>
+{%- elif f.kind == 'str' and (v|string)|length > 24 and ' ' not in v|string -%}<span class="mono" title="{{ v }}">{{ v|short }}</span>
+{%- else -%}{{ v|cell(f) }}
+{%- endif -%}
+{%- endmacro %}
+
+{# A form input for one field, chosen by its type. Groups (radios, stars) use a div so labels never nest. #}
+{% macro input(f, values, errors, prefix='', i=0) -%}
+{%- set name = prefix ~ f.name -%}
+{%- set v = (values.get(name) if values else none) -%}{%- set v = '' if v is none else v -%}
+{%- set err = errors.get(name) if errors else none -%}
+{%- set group = f.kind in ('choice', 'stars') or f.ref == 'defect_types' -%}
+{%- set wide = f.kind == 'text' or f.ref == 'defect_types' or (f.kind == 'choice' and f.choices|length > 4) -%}
+<{{ 'div' if group else 'label' }} class="field{{ ' bad' if err }}{{ ' wide' if wide }}" style="--i:{{ i }}"{% if group %} role="group" aria-labelledby="lb-{{ name }}"{% endif %}>
+  <span class="eyebrow" id="lb-{{ name }}">{{ f.label }}{% if f.required and not prefix %}<b class="req" aria-hidden="true"> *</b>{% endif %}</span>
+  {%- if f.ref == 'sellers' %}
+  <div class="cb" data-mode="fill"><input type="hidden" name="{{ name }}" data-cb-value value="{{ v }}"><input type="text" placeholder="Type a city, name or ID" autocomplete="off" aria-label="{{ f.label }}" value="{{ (names.sellers.get(v) ~ ' — ' ~ v) if names.sellers.get(v) else v }}"></div>
+  {%- elif f.ref == 'defect_types' %}
+  <div class="seg chips"><label><input type="radio" name="{{ name }}" value=""{{ ' checked' if v|string == '' }}><span>None</span></label>{% for id, cat in names.defect_types|dictsort %}<label><input type="radio" name="{{ name }}" value="{{ id }}"{{ ' checked' if v|string == id|string }}><span>{{ cat }}</span></label>{% endfor %}</div>
+  {%- elif f.kind == 'choice' %}
+  <div class="seg">{% for c in f.choices %}<label><input type="radio" name="{{ name }}" value="{{ c }}"{{ ' checked' if v == c }}{{ ' required' if f.required }}><span>{{ c }}</span></label>{% endfor %}</div>
+  {%- elif f.kind == 'stars' %}
+  <div class="stars">{% for n in range(5, 0, -1) %}<input type="radio" id="{{ name }}-{{ n }}" name="{{ name }}" value="{{ n }}"{{ ' checked' if v|string == n|string }}{{ ' required' if f.required }}><label for="{{ name }}-{{ n }}" title="{{ n }} star{{ 's' if n > 1 }}" style="--k:{{ n }}">★</label>{% endfor %}</div>
+  {%- elif f.kind == 'text' %}
+  <textarea name="{{ name }}" maxlength="{{ f.maxlen }}"{{ ' required' if f.required }}>{{ v }}</textarea>
+  {%- elif f.kind == 'datetime' %}
+  <input type="datetime-local" name="{{ name }}" value="{{ v }}"{{ ' required' if f.required }}>
+  {%- elif f.kind in ('int', 'float') %}
+  <input type="number" name="{{ name }}" value="{{ v }}" step="{{ '1' if f.kind == 'int' else 'any' }}"{% if f.lo is not none %} min="{{ f.lo|int if f.kind == 'int' else f.lo }}"{% endif %}{% if f.hi is not none %} max="{{ f.hi|int if f.kind == 'int' else f.hi }}"{% endif %}{{ ' required' if f.required }}>
+  {%- else %}
+  <input type="text" name="{{ name }}" value="{{ v }}" maxlength="{{ f.maxlen }}"{{ ' required' if f.required }}{% if f.ref %} class="mono" placeholder="{{ TABLES[f.ref].one|capitalize }} ID" spellcheck="false"{% endif %}>
+  {%- endif %}
+  {%- if err %}<span class="err" role="alert">{{ err }}</span>{% elif f.hint or f.kind == 'datetime' %}<span class="hint">{{ f.hint }}{{ ' · ' if f.hint and f.kind == 'datetime' }}{{ 'UTC' if f.kind == 'datetime' }}</span>{% endif %}
+</{{ 'div' if group else 'label' }}>
+{%- endmacro %}
+
+{# Rows of one table as a list of links. #}
+{% macro table(t, rows, extra_cols=none) -%}
+<div class="scroll-x"><table class="rows dl">
+  <thead><tr>{% for c in t.columns %}<th class="{{ 'r' if c.kind in ('int', 'float') and not c.ref }}">{{ c.label }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for id, r in rows %}
+  <tr class="link {{ r.get('RiskCategory') or '' }}{{ ' wipe' if loop.index <= 14 }}" style="--i:{{ loop.index0 }}">
+    {% for c in t.columns %}
+    {% set href = url_for('sellers.seller', seller_id=id) if t.name == 'sellers' else url_for('data.record', table=t.name, doc_id=id) %}
+    <td class="{{ 'r' if c.kind in ('int', 'float') and not c.ref }}">{% if loop.first %}<a class="row-link" href="{{ href }}" aria-label="Open {{ t.one }} {{ id }}"></a><span data-vt="{{ href }}">{{ val(c, r.get(c.name)) }}</span>{% else %}{{ val(c, r.get(c.name)) }}{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{%- endmacro %}

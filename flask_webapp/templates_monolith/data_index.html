@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Records · NexusRisk{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ asset('monolith/data.css') }}">{% endblock %}
+{% block content %}
+<section class="head">
+  <div class="rise"><h1 class="display" style="margin-top:14px">Records</h1></div>
+</section>
+<section class="sec">
+  <table class="rows">
+    <thead><tr><th>Table</th><th class="r">Rows</th><th class="r"></th></tr></thead>
+    <tbody>
+    {% for t in tables %}
+    <tr class="link wipe" style="--i:{{ loop.index0 }}">
+      <td><a class="row-link" href="{{ url_for('data.rows', table=t.name) }}" data-vt="{{ url_for('data.rows', table=t.name) }}">{{ t.label }}</a> <span class="id">{{ t.name }}</span></td>
+      <td class="r sc num" style="font-size:26px;color:var(--sand)"><span data-table-count="{{ t.name }}"{% if counts and counts.get(t.name) is not none %} data-count="{{ counts[t.name] }}"{% endif %}>{{ '{:,}'.format(counts[t.name]) if counts and counts.get(t.name) is not none else '—' }}</span></td>
+      <td class="r" style="width:120px">{% if t.key_kind != 'model' %}<a class="fk" href="{{ url_for('data.create', table=t.name) }}">+ New</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+{% block scripts %}<script>
+(() => {
+  const els = [...document.querySelectorAll('[data-table-count]')];
+  if (!els.some(e => !e.dataset.count)) return;
+  fetch('{{ url_for("data.counts") }}', {headers: {Accept: 'application/json'}}).then(r => r.ok ? r.json() : null).then(c => {
+    if (c) els.forEach(e => { const n = c[e.dataset.tableCount]; if (n != null) { const s = n.toLocaleString('en-US'); window.odometer ? odometer(e, s) : (e.textContent = s); } });
+  }).catch(() => {});
+})();
+</script>{% endblock %}

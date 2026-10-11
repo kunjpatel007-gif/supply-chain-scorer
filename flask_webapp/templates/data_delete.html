@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}Delete {{ t.one }} · NexusRisk{% endblock %}
+{% set back = url_for('sellers.seller', seller_id=plan.doc_id) if t.name == 'sellers' else url_for('data.record', table=t.name, doc_id=plan.doc_id) %}
+{% block actions %}<a class="pill" href="{{ back }}">Cancel</a>{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="head rise"><h1>{% if plan.blocked %}Can’t delete yet{% else %}Delete {{ m.title(t, plan.doc_id, plan.row) }}?{% endif %}</h1></div>
+  <div class="glass rise" style="--i:1;padding:1.5rem">
+  {% if plan.blocked %}
+    <p class="text-neutral">Other rows still point at this {{ t.one }} (restrict). Delete or repoint them first:</p>
+    {% for bt, bf, n in plan.blocked %}<div class="row" style="padding:.6rem 0"><a href="{{ url_for('data.rows', table=bt.name, f=bf, v=plan.doc_id) }}" style="text-decoration:underline">{{ bt.label }}</a><span class="text-coral">{{ n }}</span></div>{% endfor %}
+  {% else %}
+    <div class="row" style="padding:.6rem 0"><span>{{ t.label }} · this row</span><span>1</span></div>
+    {% for s in plan.steps %}<div class="row" style="padding:.6rem 0 .6rem {{ s.depth }}rem"><span>{{ s.table.label }} <span class="text-neutral">· {{ s.why }}</span></span><span>{{ '{:,}'.format(s.refs|length) }}</span></div>{% endfor %}
+    <form method="POST" onsubmit="return confirm('Delete {{ plan.total }} rows?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if request.args.get('next') %}<input type="hidden" name="next" value="{{ request.args.get('next') }}">{% endif %}
+      <button type="submit" class="btn danger sm">Delete {{ '{:,}'.format(plan.total) }} row{{ 's' if plan.total > 1 }}</button>
+    </form>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

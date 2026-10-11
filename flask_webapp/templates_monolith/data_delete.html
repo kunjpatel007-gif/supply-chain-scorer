@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block preload %}<link rel="preload" href="{{ asset('fonts/instrument-serif-latin-400-italic.woff2') }}" as="font" type="font/woff2" crossorigin>{% endblock %}
+{% block title %}Delete {{ t.one }} · NexusRisk{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ asset('monolith/data.css') }}">{% endblock %}
+{% block content %}
+{% set back = url_for('sellers.seller', seller_id=plan.doc_id) if t.name == 'sellers' else url_for('data.record', table=t.name, doc_id=plan.doc_id) %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Database</a><span>/</span><a href="{{ url_for('data.rows', table=t.name) }}">{{ t.name }}</a><span>/</span><span class="mono" style="letter-spacing:0;text-transform:none">{{ plan.doc_id|short(16) }}</span></div>
+    <h1 class="display rec" style="margin-top:14px">{% if plan.blocked %}Can’t delete <i>yet</i>{% else %}Delete <i>{{ m.title(t, plan.doc_id, plan.row) }}</i>?{% endif %}</h1>
+  </div>
+  {% if not plan.blocked %}
+  <div class="stat rise" style="--i:1;border:0">
+    <div class="eyebrow">Rows removed</div>
+    <div class="n num cat High" data-count="{{ plan.total }}">{{ '{:,}'.format(plan.total) }}</div>
+    <div class="p">this {{ t.one }}{% if plan.total > 1 %} + {{ '{:,}'.format(plan.total - 1) }} linked{% endif %}</div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="sec">
+{% if plan.blocked %}
+  <p class="lede">Rows in other tables still point at this {{ t.one }} and their key is set to <span class="tag restrict">restrict</span>, so deleting it would leave them pointing at nothing. Delete or repoint them first.</p>
+  <ol class="tree">
+    <li class="root" style="--d:0"><span>{{ t.label }} · this row</span><span class="mono">1</span></li>
+    {% for bt, bf, n in plan.blocked %}
+    <li style="--d:1;--i:{{ loop.index }}"><a class="fk" href="{{ url_for('data.rows', table=bt.name, f=bf, v=plan.doc_id) }}">{{ bt.label }} <span class="mute">· {{ bt.name }}.{{ bf }}</span></a><span class="mono cat High">{{ '{:,}'.format(n) }}</span></li>
+    {% endfor %}
+  </ol>
+  <div class="actions" style="margin-top:28px"><a class="btn ghost" href="{{ back }}">Back</a></div>
+{% else %}
+  <div class="eyebrow" style="margin-bottom:6px"><span>What goes</span><span>on delete cascade</span></div>
+  <ol class="tree" style="--n:{{ plan.steps|length + 1 }}">
+    <li class="root" style="--d:0;--k:0"><span>{{ t.label }} · this row</span><span class="mono">1</span></li>
+    {% for s in plan.steps %}
+    <li style="--d:{{ s.depth }};--i:{{ loop.index }};--k:{{ loop.index }}"><span>{{ s.table.label }} <span class="mute">· {{ s.why }}</span></span><span class="mono" data-count="{{ s.refs|length }}">{{ '{:,}'.format(s.refs|length) }}</span></li>
+    {% endfor %}
+  </ol>
+  <form method="POST" class="actions" style="margin-top:30px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if request.args.get('next') %}<input type="hidden" name="next" value="{{ request.args.get('next') }}">{% endif %}
+    <button class="btn danger hold" type="submit" data-hold><i class="fill" aria-hidden="true"></i><span class="lbl">Delete {{ '{:,}'.format(plan.total) }} row{{ 's' if plan.total > 1 }}</span></button>
+    <a class="btn ghost" href="{{ back }}">Cancel</a>
+  </form>
+{% endif %}
+</section>
+{% endblock %}

@@ -24,3 +24,6 @@ frontend_revamp_test/
 flask_webapp/templates_tactile_backup/
 *.zip
 cookies.txt
+
+# Local demo recordings
+demo/

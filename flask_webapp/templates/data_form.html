@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}{{ ('New ' ~ t.one) if creating else ('Edit ' ~ t.one) }} · NexusRisk{% endblock %}
+{% set nxt = request.args.get('next') or (values.get('next') if values else none) %}
+{% block actions %}<a class="pill" href="{{ nxt or url_for('data.rows', table=t.name) }}">Cancel</a>{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="head rise"><h1>{% if creating %}New {{ t.one }}{% else %}Edit {{ m.title(t, doc_id, row) }}{% endif %}</h1></div>
+  <div class="glass rise" style="--i:1;padding:2rem">
+    {% if errors %}<div class="flash err">Nothing was saved. Check the fields below.</div>{% endif %}
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if nxt %}<input type="hidden" name="next" value="{{ nxt }}">{% endif %}
+      {% for f in t.form_fields(creating) %}{{ m.input(f, values, errors) }}{% endfor %}
+      {% if creating and t.name == 'purchase_orders' %}
+      <div class="sec">First line (optional)</div>
+      {% for f in TABLES.po_lines.form_fields(true) if f.name in ('sellerId', 'productId', 'unitPriceAtOrder', 'freightValue') %}{{ m.input(f, values, errors, 'line_') }}{% endfor %}
+      {% endif %}
+      <button type="submit" class="btn">{{ 'Create ' ~ t.one if creating else 'Save changes' }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

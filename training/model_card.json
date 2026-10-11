@@ -1,14 +1,13 @@
 {
-  "model_version": "20261010-193247",
-  "trained_at": "2026-10-10T19:32:47",
-  "question": "Probability the seller is in the worst 25% of sellers over the next 4 months (an order is bad if late or reviewed <= 2 stars).",
+  "model_version": "20261011-112836",
+  "trained_at": "2026-10-11T11:28:36",
+  "question": "Risk that a seller lands in the worst 25% over the next 4 months, where an order is bad if late or reviewed \u2264 2 stars",
   "features": [
     "total_orders",
     "total_items",
     "unique_products",
     "avg_price",
     "avg_freight",
-    "price_volatility",
     "avg_delay_days",
     "max_delay_days",
     "pct_late_deliveries",
@@ -32,7 +31,8 @@
     "objective": "binary:logistic",
     "eval_metric": "logloss",
     "tree_method": "hist",
-    "random_state": 42
+    "random_state": 42,
+    "monotone_constraints": "(-1,-1,0,0,0,1,1,1,-1,1,-1,1)"
   },
   "train_rows": 3370,
   "test_rows": 719,
@@ -47,34 +47,48 @@
     "2018-03-01"
   ],
   "test_metrics": {
-    "auc": 0.6711,
-    "pr_auc": 0.4271,
+    "auc": 0.6594,
+    "pr_auc": 0.3845,
     "positive_rate": 0.235,
-    "baseline_auc_negative_review_rate": 0.6526,
-    "baseline_auc_pct_late": 0.5928
+    "baseline_auc_negative_review_rate": 0.6204,
+    "baseline_auc_pct_late": 0.5596
   },
   "test_bands": {
     "Low": {
-      "sellers": 242.0,
-      "landed_in_worst_25pct": 0.1281,
-      "avg_future_bad_rate": 0.1497
+      "sellers": 241.0,
+      "landed_in_worst_25pct": 0.1203,
+      "avg_future_bad_rate": 0.1534
     },
     "Medium": {
-      "sellers": 297.0,
-      "landed_in_worst_25pct": 0.2155,
-      "avg_future_bad_rate": 0.184
+      "sellers": 304.0,
+      "landed_in_worst_25pct": 0.2434,
+      "avg_future_bad_rate": 0.1838
     },
     "High": {
-      "sellers": 180.0,
-      "landed_in_worst_25pct": 0.4111,
-      "avg_future_bad_rate": 0.2396
+      "sellers": 174.0,
+      "landed_in_worst_25pct": 0.3793,
+      "avg_future_bad_rate": 0.2365
     }
   },
   "top_features": [
-    "negative_review_rate",
-    "n_reviews",
     "defect_rate",
     "avg_delay_days",
-    "total_orders"
-  ]
+    "pct_late_deliveries",
+    "total_orders",
+    "negative_review_rate"
+  ],
+  "feature_impact": {
+    "avg_delay_days": 0.1634,
+    "unique_products": 0.1429,
+    "avg_freight": 0.1088,
+    "n_reviews": 0.1023,
+    "defect_rate": 0.0968,
+    "avg_price": 0.0885,
+    "total_orders": 0.0866,
+    "avg_review_score": 0.0584,
+    "negative_review_rate": 0.0576,
+    "max_delay_days": 0.0428,
+    "total_items": 0.0325,
+    "pct_late_deliveries": 0.0195
+  }
 }

@@ -42,7 +42,7 @@ def get_model():
             import xgboost as xgb
             with open(CARD_PATH, 'r', encoding='utf-8') as f:
                 card = json.load(f)
-            if card.get('features') != FEATURE_COLS:
+            if not card.get('features') or not set(card['features']) <= set(FEATURE_COLS):
                 raise ModelNotReady("Model was trained on different features - retrain it")
             booster = xgb.Booster()
             booster.load_model(MODEL_PATH)
@@ -66,8 +66,9 @@ def score_frame(features_df):
     """features_df: rows of FEATURE_COLS -> DataFrame with RiskScore (0-100) and RiskCategory."""
     import xgboost as xgb
     booster, card = get_model()
-    X = features_df.reindex(columns=FEATURE_COLS).astype(float)
-    prob = booster.predict(xgb.DMatrix(X, feature_names=FEATURE_COLS))
+    cols = card['features']                 # the inputs this model was trained on (a subset of FEATURE_COLS)
+    X = features_df.reindex(columns=cols).astype(float)
+    prob = booster.predict(xgb.DMatrix(X, feature_names=cols))
     scores = np.round(prob * 100, 2)
     return pd.DataFrame({'RiskScore': scores, 'RiskCategory': categorize(scores, card['bands'])},
                         index=features_df.index)
@@ -81,3 +82,43 @@ def predict_one(features_row):
         log.warning("ML model not ready: %s", exc)
         return None, None
     return float(out['RiskScore'].iloc[0]), str(out['RiskCategory'].iloc[0])
+
+
+def model_card():
+    """The trained model's card (metrics, bands, features), or None before retraining."""
+    try:
+        return get_model()[1]
+    except ModelNotReady:
+        return None
+
+
+FEATURE_LABELS = {
+    'total_orders': 'Orders', 'total_items': 'Items sold', 'unique_products': 'Products',
+    'avg_price': 'Avg price', 'avg_freight': 'Avg freight', 'price_volatility': 'Price spread',
+    'avg_delay_days': 'Avg delivery vs promise', 'max_delay_days': 'Worst delivery',
+    'pct_late_deliveries': 'Late deliveries', 'avg_review_score': 'Avg review',
+    'negative_review_rate': 'Reviews \u2264 3 stars', 'n_reviews': 'Reviews counted',
+    'defect_rate': 'Defect severity / order',
+}
+
+
+def explain_one(features_row, top=5):
+    """
+    Why did this seller get its score? Uses XGBoost's exact per-feature contributions (SHAP).
+    Returns [(feature, label, value, contribution)] sorted by absolute push, biggest first.
+    Positive contribution = pushes risk up. Empty list if the model isn't trained yet.
+    """
+    import xgboost as xgb
+    try:
+        booster, _ = get_model()
+    except ModelNotReady:
+        return []
+    cols = get_model()[1]['features']
+    X = pd.DataFrame([dict(features_row)]).reindex(columns=cols).astype(float)
+    contrib = booster.predict(xgb.DMatrix(X, feature_names=cols), pred_contribs=True)[0][:-1]
+    rows = []
+    for f, c in zip(cols, contrib):
+        v = X[f].iloc[0]
+        rows.append((f, FEATURE_LABELS.get(f, f), None if v != v else float(v), float(c)))
+    rows.sort(key=lambda r: abs(r[3]), reverse=True)
+    return rows[:top]

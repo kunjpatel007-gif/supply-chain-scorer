@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ risk_level }} risk · NexusRisk{% endblock %}
+{% block content %}
+<section class="head {{ risk_level }}">
+  <div class="rise">
+    <div class="eyebrow">{% if period %}Period {{ period }} · {% endif %}score {% if risk_level=='High' %}≥ {{ bands.High|int }}{% elif risk_level=='Medium' %}{{ bands.Medium|int }}–{{ bands.High|int }}{% else %}&lt; {{ bands.Medium|int }}{% endif %}</div>
+    <h1 class="display" style="margin-top:14px">{{ risk_level }} risk</h1>
+  </div>
+  <div class="stat rise" style="--i:1;border:0">
+    <div class="n num cat" data-count="{{ results|length }}" style="view-transition-name:stat-{{ risk_level }};view-transition-class:morph">{{ '{:,}'.format(results|length) }}</div>
+    <div class="p">{% if total %}{{ '%.1f'|format(results|length / total * 100) }}% of {{ '{:,}'.format(total) }} scored{% endif %}</div>
+  </div>
+</section>
+<section class="sec">
+{% if results %}
+<div class="list {{ risk_level }}">
+  <div class="lhead"><span>#</span><span>Seller</span><span class="hide-sm">ID</span><span class="hide-sm">Trend</span><span class="hide-sm">Score</span><span></span></div>
+  {% for chunk in results|batch(40) %}{% set c0 = loop.index0 * 40 %}
+  <div class="chunk" style="contain-intrinsic-size:auto {{ chunk|length * 53 }}px">
+    {% for r in chunk %}{% set n = c0 + loop.index %}
+    <a class="lrow{% if n <= 14 %} wipe{% endif %}" href="{{ url_for('sellers.seller', seller_id=r[0]) }}" data-sid="{{ r[0] }}" style="--i:{{ n - 1 }}">
+      <span class="rk">{{ '%02d'|format(n) if n < 100 else n }}</span>
+      <span class="nm">{{ r[1] }}</span>
+      <span class="id hide-sm">{{ r[0] }}</span>
+      <span class="trend {{ r[4] }} hide-sm">{{ r[4] or '' }}</span>
+      <span class="bar2 hide-sm"><i style="--w:{{ r[2] }}{% if n <= 14 %};animation:growx .9s cubic-bezier(.2,.7,.2,1) both;animation-delay:{{ 400 + (n - 1) * 60 }}ms{% endif %}"></i></span>
+      <span class="sc num">{{ '%.1f'|format(r[2]) }}</span>
+    </a>{% endfor %}
+  </div>{% endfor %}
+</div>
+{% else %}<p class="mute">No sellers in this band{% if period %} for {{ period }}{% endif %}.</p>{% endif %}
+</section>
+{% endblock %}

@@ -22,7 +22,7 @@ def test_default_password_rejected(client):
 
 def test_csrf_blocks_forms_without_token(db):
     from flask_webapp.app import create_app
-    c = create_app({'TESTING': True}).test_client()   # CSRF on
+    c = create_app({'TESTING': True, 'UI_THEME': 'classic'}).test_client()   # CSRF on
     r = c.post('/login', data={'password': os.environ['ADMIN_PASSWORD']})
     assert r.status_code == 400
 

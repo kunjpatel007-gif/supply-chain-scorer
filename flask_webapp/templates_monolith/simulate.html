@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Simulate · NexusRisk{% endblock %}
+{% block content %}
+{% set pre = request.args.get('seller') %}
+{% set pre_name = (sellers|selectattr('id','equalto',pre)|map(attribute='name')|first) if pre else none %}
+<section class="head">
+  <div class="rise"><div class="eyebrow">Inject one order</div><h1 class="display" style="margin-top:14px">Simulate an event</h1></div>
+</section>
+<section class="sec grid2">
+  <form method="POST" action="{{ url_for('simulator.simulate_event') }}" class="rise" style="--i:1" id="simform">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field"><span class="eyebrow">Seller</span>
+      <div class="cb" data-mode="fill">
+        <input type="hidden" name="seller_id" data-cb-value value="{{ pre or '' }}" required>
+        <input type="text" placeholder="Type a city, name or ID" autocomplete="off" aria-label="Seller" value="{{ (pre_name ~ ' — ' ~ pre) if pre_name else '' }}">
+      </div></label>
+    <label class="field"><span class="eyebrow">Delivery delay vs promised date (days)</span>
+      <input type="number" name="delay_days" min="0" max="365" value="0" required></label>
+    <label class="field"><span class="eyebrow">Customer review (English)</span>
+      <textarea name="review_text" maxlength="2000" required placeholder="Arrived broken, terrible quality"></textarea></label>
+    <button class="btn" type="submit" id="go" {% if not pre %}disabled{% endif %}>Inject and re-score</button>
+  </form>
+  <div class="rise" style="--i:2">
+    <div class="eyebrow" style="margin-bottom:14px">What happens</div>
+    <table class="rows"><tbody>
+      <tr><td class="mono mute" style="width:42px">01</td><td>Review text → VADER sentiment → 1–5 stars and defect severity 0–5</td></tr>
+      <tr><td class="mono mute">02</td><td>Writes 1 order, 1 delivery and 1 review to Firestore, marked <span class="mono">simulated</span></td></tr>
+      <tr><td class="mono mute">03</td><td>Recomputes this seller's 13 features and re-scores with the live model</td></tr>
+      <tr><td class="mono mute">04</td><td>Updates this period's score, dashboard counts and histogram; raises an alert if it turns High</td></tr>
+    </tbody></table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script>
+const hid=document.querySelector('#simform [data-cb-value]'),go=document.getElementById('go');
+hid.addEventListener('change',()=>go.disabled=!hid.value);
+document.querySelector('#simform input[type=text]').addEventListener('input',()=>go.disabled=!hid.value);
+</script>{% endblock %}

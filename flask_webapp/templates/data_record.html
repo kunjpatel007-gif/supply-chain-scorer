@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}{{ m.title(t, doc_id, row) }} · NexusRisk{% endblock %}
+{% block actions %}<a class="pill" href="{{ url_for('data.rows', table=t.name) }}"><svg class="i" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>{{ t.label }}</span></a>
+{% if t.editable %}<a class="pill on" href="{{ url_for('data.edit', table=t.name, doc_id=doc_id) }}"><span>Edit</span></a>{% endif %}{% endblock %}
+{% block content %}
+<div class="head rise"><div><h1>{{ m.title(t, doc_id, row) }}</h1><div class="meta mono">{{ t.name }}/{{ doc_id }}</div></div></div>
+<div class="glass rise" style="--i:1;padding:1.5rem">
+  {% for f in t.fields %}<div class="row" style="padding:.6rem 0;border-bottom:1px solid var(--line)"><span class="text-neutral">{{ f.label }}</span><span>{{ m.val(f, row.get(f.name)) }}</span></div>{% endfor %}
+</div>
+{% if t.name == 'risk_scores' %}<form method="POST" action="{{ url_for('data.score') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="SellerID" value="{{ row.SellerID }}"><button class="btn sm" type="submit">Re-score now</button></form>{% endif %}
+{% for L in links %}
+<div class="sec">{{ L.table.label }} · {{ L.count }} (on delete {{ L.rule }})</div>
+{{ m.table(L.table, L.rows) }}
+<div style="display:flex;gap:.6rem;margin-top:.8rem">
+  {% if L.table.key_kind != 'model' %}<a class="pill" href="{{ url_for('data.create', table=L.table.name, next=request.path, **{L.field: doc_id}) }}">+ Add {{ L.table.one }}</a>{% endif %}
+  {% if L.count > L.rows|length %}<a class="pill" href="{{ url_for('data.rows', table=L.table.name, f=L.field, v=doc_id) }}">All {{ L.count }} →</a>{% endif %}
+</div>
+{% endfor %}
+<a class="btn sm danger" style="margin-top:2.5rem" href="{{ url_for('data.remove', table=t.name, doc_id=doc_id) }}">Delete {{ t.one }}</a>
+{% endblock %}

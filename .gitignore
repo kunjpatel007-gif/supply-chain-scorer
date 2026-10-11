@@ -25,3 +25,6 @@ backup/
 cookies.txt
 data/
 training/dataset.csv
+
+# Local demo recordings
+demo/

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "_data_macros.html" as m with context %}
+{% block title %}{{ m.title(t, doc_id, row) }} · NexusRisk{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ asset('monolith/data.css') }}">{% endblock %}
+{% block content %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow crumbs"><a href="{{ url_for('data.index') }}">Database</a><span>/</span><a href="{{ url_for('data.rows', table=t.name) }}">{{ t.name }}</a><span>/</span><span class="mono" style="letter-spacing:0;text-transform:none">{{ doc_id|short(16) }}</span></div>
+    <h1 class="display rec vt-title" style="margin-top:14px;view-transition-name:title;view-transition-class:morph">{{ m.title(t, doc_id, row) }}</h1>
+    <div class="actions" style="margin-top:24px">
+      {% if t.editable %}<a class="btn ghost" href="{{ url_for('data.edit', table=t.name, doc_id=doc_id) }}">Edit</a>{% endif %}
+      {% if t.name == 'risk_scores' %}
+      <form method="POST" action="{{ url_for('data.score') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="SellerID" value="{{ row.SellerID }}">
+        <button class="btn ghost" type="submit">Re-score now</button>
+      </form>
+      {% endif %}
+      <a class="btn danger" href="{{ url_for('data.remove', table=t.name, doc_id=doc_id) }}">Delete</a>
+    </div>
+  </div>
+</section>
+
+{% for tn, fn in quick if tn == t.name %}{% set qf = t.field(fn) %}
+<section class="sec quickrow">
+  <div class="eyebrow"><span>{{ qf.label }}</span><span>one click saves it</span></div>
+  <div class="seg quick" role="group" aria-label="{{ qf.label }}">
+    {% for c in qf.choices %}
+    <form method="POST" action="{{ url_for('data.quick_set', table=t.name, doc_id=doc_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="field" value="{{ fn }}"><input type="hidden" name="value" value="{{ c }}">
+      <button type="submit"{% if row.get(fn) == c %} class="on" aria-pressed="true"{% else %} aria-pressed="false"{% endif %}><span>{{ c }}</span></button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% if summary %}
+<section class="sec">
+  <div class="strip">
+    <div style="--i:0"><span class="eyebrow">Seller</span><b>{% for sid in summary.sellers %}<a class="fk" href="{{ url_for('sellers.seller', seller_id=sid) }}">{{ names.sellers.get(sid) or sid|short }}</a>{{ ', ' if not loop.last }}{% else %}<span class="faint">no lines yet</span>{% endfor %}</b></div>
+    <div style="--i:1"><span class="eyebrow">Items</span><b class="num" data-count="{{ summary['items'] }}">{{ summary['items'] }}</b></div>
+    <div style="--i:2"><span class="eyebrow">Value incl. freight</span><b class="num">{{ ('R$ ' ~ '{:,.2f}'.format(summary.value)) if summary.value else '—' }}</b></div>
+    <div style="--i:3"><span class="eyebrow">Delivery</span><b>{% if summary.delay is not none %}{{ m.val(TABLES.deliveries.field('delayDays'), summary.delay) }}{% else %}<span class="faint">not delivered</span>{% endif %}</b></div>
+    <div style="--i:4"><span class="eyebrow">Review</span><b>{% if summary.stars is not none %}<span class="st">{{ '★' * (summary.stars|round|int) }}{{ '☆' * (5 - summary.stars|round|int) }}</span>{% else %}<span class="faint">none</span>{% endif %}</b></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="sec">
+  <div class="eyebrow"><span>Fields</span><span class="mono" style="letter-spacing:0;text-transform:none">{{ t.name }}/{{ doc_id }}</span></div>
+  <div class="spec">
+    {% for f in t.fields %}
+    <div class="kvr{{ ' long' if f.kind == 'text' }}" style="--i:{{ loop.index }}">
+      <span>{{ f.label }}{% if f.name == t.key %} <span class="tag pk">PK</span>{% elif f.ref %} <span class="tag fk">FK</span>{% elif f.auto %} <span class="tag auto">auto</span>{% endif %}</span>
+      <span class="v">{{ m.val(f, row.get(f.name)) }}</span>
+    </div>
+    {% endfor %}
+    {% for k, v in extra|dictsort %}
+    <div class="kvr"><span>{{ k }} <span class="tag">extra</span></span><span class="v mono">{{ v|cell }}</span></div>
+    {% endfor %}
+  </div>
+</section>
+
+{% for L in links %}
+<section class="sec">
+  <div class="eyebrow"><span>{{ L.table.label }} · <span data-count="{{ L.count }}">{{ '{:,}'.format(L.count) }}</span></span><span>{{ L.table.name }}.{{ L.field }} → this {{ t.one }} · on delete <span class="tag {{ L.rule }}">{{ L.rule }}</span></span></div>
+  {% if L.rows %}{{ m.table(L.table, L.rows) }}{% else %}<p class="mute">None yet.</p>{% endif %}
+  <div class="actions" style="margin-top:18px">
+    {% if L.table.key_kind != 'model' %}<a class="btn ghost" href="{{ url_for('data.create', table=L.table.name, next=request.path, **{L.field: doc_id}) }}">Add {{ L.table.one }}</a>{% endif %}
+    {% if L.count > L.rows|length %}<a class="more" href="{{ url_for('data.rows', table=L.table.name, f=L.field, v=doc_id) }}">All {{ '{:,}'.format(L.count) }} <span class="arr">→</span></a>{% endif %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

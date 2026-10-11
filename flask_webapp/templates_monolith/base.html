@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}NexusRisk{% endblock %}</title>
+<style>
+@font-face{font-family:'Instrument Serif';src:url("{{ asset('fonts/instrument-serif-latin-400-normal.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Serif';font-style:italic;src:url("{{ asset('fonts/instrument-serif-latin-400-italic.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'Space Grotesk';font-weight:400;src:url("{{ asset('fonts/space-grotesk-latin-400-normal.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'Space Grotesk';font-weight:500;src:url("{{ asset('fonts/space-grotesk-latin-500-normal.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url("{{ asset('fonts/space-grotesk-latin-700-normal.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'JetBrains Mono';font-weight:400;src:url("{{ asset('fonts/jetbrains-mono-latin-400-normal.woff2') }}") format('woff2');font-display:swap}
+@font-face{font-family:'JetBrains Mono';font-weight:500;src:url("{{ asset('fonts/jetbrains-mono-latin-500-normal.woff2') }}") format('woff2');font-display:swap}
+@view-transition{navigation:auto}
+:root{
+  --bg:#0e0d0b;--panel:#141310;--ink:#e9e1d1;--mute:#8a8273;--faint:#5c574e;--line:#2a2722;--line2:#3a362f;
+  --sand:#c9bba0;--ochre:#a8875a;--rust:#c2573c;--ok:#8fa58a;
+  --serif:'Instrument Serif',Georgia,serif;--sans:'Space Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+body{background:var(--bg);
+  color:var(--ink);font:400 15px/1.55 var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--rust);color:var(--ink)}
+.wrap{max-width:1296px;margin:0 auto;padding:0 40px}
+/* ---- top bar ---- */
+.bar{position:relative;z-index:30;display:flex;align-items:center;gap:28px;height:72px;border-bottom:1px solid var(--line);font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--mute)}
+.bar .brand{color:var(--ink)}
+.bar nav{display:flex;gap:22px}
+.bar nav a{padding:6px 0;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
+.bar nav a:hover,.bar nav a[aria-current=page]{color:var(--ink);border-color:var(--ink)}
+.bar .sp{flex:1}
+/* ---- type ---- */
+.eyebrow{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--mute)}
+h1.display{font:400 clamp(44px,6vw,76px)/1 var(--serif);letter-spacing:-.01em}
+h1.display i,.serif i{color:var(--sand)}
+.serif{font-family:var(--serif);font-weight:400}
+.mono{font-family:var(--mono)}
+.mute{color:var(--mute)}
+.num{font-variant-numeric:tabular-nums}
+.High{--c:var(--rust)}.Medium{--c:var(--ochre)}.Low{--c:var(--sand)}
+.cat{color:var(--c)}
+/* ---- layout bits ---- */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding:56px 0 32px;border-bottom:1px solid var(--line)}
+.sec{padding:40px 0;border-bottom:1px solid var(--line)}
+.sec>.eyebrow{margin-bottom:20px;display:flex;justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:56px}
+.stats{display:flex}
+.stat{min-width:190px;padding:0 28px;border-left:1px solid var(--line)}
+.stat .n{font:400 84px/1.05 var(--serif);margin-top:8px}
+.stat .p{font:400 12px var(--mono);color:var(--mute)}
+a.stat:hover .n{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:10px}
+/* tables as rows */
+.rows{width:100%;border-collapse:collapse}
+.rows th{font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--mute);text-align:left;padding:0 0 12px;border-bottom:1px solid var(--line);font-weight:500}
+.rows td{padding:0;height:52px;border-bottom:1px solid var(--line);vertical-align:middle}
+.rows tr.link{cursor:pointer;position:relative;transition:background-color .2s}
+.rows tr.link:hover{background-color:rgba(233,225,209,.03)}
+/* stretched link: the whole row is a real link (middle-click, keyboard, page transitions) */
+.rows tr.link a.row-link{position:static}
+.rows tr.link a.row-link::after{content:'';position:absolute;inset:0;z-index:1}
+.rows tr.link a.row-link:focus-visible{outline:none}
+.rows tr.link a.row-link:focus-visible::after{outline:1px solid var(--sand);outline-offset:-1px}
+/* long lists: rows are links, grouped in chunks the browser can skip rendering off-screen */
+.list .lhead,.lrow{display:grid;grid-template-columns:64px minmax(0,1.4fr) minmax(0,1.6fr) 110px minmax(0,1fr) 90px;align-items:center;gap:0 12px}
+.list .lhead{font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--mute);padding-bottom:12px;border-bottom:1px solid var(--line)}
+.lrow{height:53px;padding-right:24px;border-bottom:1px solid var(--line);transition:background-color .2s}
+.list .lhead{padding-right:24px}
+.lrow:hover{background-color:rgba(233,225,209,.03)}
+.lrow .sc{font:400 32px var(--serif);text-align:right;color:var(--c)}
+.lrow .rk{font:italic 400 26px var(--serif);color:var(--mute)}
+.lrow .id{font:400 12px var(--mono);color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .trend{white-space:nowrap}
+.lrow .bar2{height:2px;background:var(--line)}
+.lrow .bar2 i{display:block;height:2px;background:var(--c);transform-origin:left;scale:calc(var(--w) / 100) 1}
+.list.search .lhead,.list.search .lrow{grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) 120px 90px}
+@media(max-width:900px){.list .lhead,.lrow{grid-template-columns:44px 1fr 70px}.list.search .lhead,.list.search .lrow{grid-template-columns:1fr 90px 70px}}
+.rows .rk{font:italic 400 26px var(--serif);color:var(--mute);width:64px}
+.rows .id{font:400 12px var(--mono);color:var(--mute)}
+.rows .sc{font:400 32px var(--serif);text-align:right;color:var(--c)}
+.r,.rows th.r,.rows td.r{text-align:right}
+.trend{font:400 12px var(--mono);color:var(--mute)}
+.trend.UP{color:var(--rust)}.trend.DOWN{color:var(--ok)}
+/* histogram */
+.hist{position:relative;height:220px;display:flex;align-items:flex-end;gap:5px;border-bottom:1px solid var(--line)}
+.hist .b{flex:1;background:var(--c);opacity:.9;transform-origin:bottom;min-height:2px;position:relative}
+.hist .b.Low{opacity:.5}
+.hist .b:hover::after{content:attr(data-t);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;font:400 11px var(--mono);background:var(--panel);border:1px solid var(--line2);padding:4px 8px;color:var(--ink)}
+.thr{position:absolute;top:-14px;bottom:-26px;border-left:1px dashed var(--line2)}
+.thr span{position:absolute;bottom:0;left:8px;font:400 11px var(--mono);color:var(--mute);white-space:nowrap}
+/* forms */
+.field{display:block;margin-bottom:22px}
+.field>span{display:block;margin-bottom:8px}
+input[type=text],input[type=password],input[type=number],textarea{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line2);color:var(--ink);font:400 18px var(--sans);padding:10px 0;outline:none;transition:border-color .2s}
+textarea{min-height:110px;resize:vertical;line-height:1.5}
+input:focus,textarea:focus{border-color:var(--sand)}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+.btn{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font:500 12px var(--mono);letter-spacing:.18em;text-transform:uppercase;padding:14px 22px;cursor:pointer;transition:background .2s,color .2s}
+.btn:hover{background:transparent;color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line2)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.danger{background:transparent;color:var(--rust);border-color:var(--rust)}
+.btn.danger:hover{background:var(--rust);color:var(--ink)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+/* flash */
+.flash{margin-top:28px;padding:14px 18px;border-left:2px solid var(--sand);background:rgba(201,187,160,.06);font:400 14px var(--sans)}
+.flash.err{border-color:var(--rust);background:rgba(194,87,60,.08)}
+/* combobox */
+.cb{position:relative}
+.cb input{font-size:15px}
+.bar .cb{width:300px}
+.bar .cb input{border-bottom-color:var(--line);font:400 13px var(--mono);letter-spacing:.02em;text-transform:none;padding:8px 0}
+.cb ul{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 6px);list-style:none;background:var(--panel);border:1px solid var(--line2);max-height:360px;overflow:auto;display:none;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.cb[aria-expanded=true] ul{display:block}
+.cb li{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 12px;text-transform:none;letter-spacing:0}
+.cb li:last-child{border-bottom:0}
+.cb li b{font:400 15px var(--sans);color:var(--ink)}
+.cb li small{font:400 11px var(--mono);color:var(--mute);grid-column:1/-1}
+.cb li[aria-selected=true]{background:rgba(233,225,209,.07)}
+.cb li mark{background:none;color:var(--sand);text-decoration:underline;text-underline-offset:3px}
+.cb .empty{padding:12px 14px;font:400 12px var(--mono);color:var(--mute);text-transform:none;letter-spacing:0}
+/* motion */
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes growx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0)*90ms)}
+.hist .b{animation:grow .8s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(300ms + var(--i,0)*18ms)}
+.wipe{animation:wipe .8s cubic-bezier(.65,0,.35,1) both;animation-delay:calc(500ms + var(--i,0)*70ms)}
+/* odometer digits (inline because a half-built odometer must never show without its styles) */
+.odo{position:relative;display:inline-block;vertical-align:top;overflow-x:visible;overflow-y:clip}
+.odo-ph{visibility:hidden}
+.odo-s{position:absolute;left:50%;top:0;translate:-50% 0;white-space:pre;text-align:center;
+  transform:translateY(calc(var(--t) * -100% / var(--n)));animation:odo 1.6s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(220ms + var(--k,0) * 45ms)}
+.odo.spin .odo-s{animation-duration:.7s;animation-delay:calc(var(--k,0) * 30ms)}
+.odo-c{display:inline-block;vertical-align:top}
+@keyframes odo{from{transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@media(max-width:900px){.wrap{padding:0 18px}.grid2{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}.stats{flex-wrap:wrap}.stat{min-width:0;flex:1;padding:0 14px}.stat .n{font-size:52px}.bar .cb{display:none}.hide-sm{display:none}}
+</style>
+<link rel="preload" href="{{ asset('fonts/instrument-serif-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ asset('fonts/space-grotesk-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ asset('fonts/jetbrains-mono-latin-500-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+{% block preload %}{% endblock %}
+<link rel="stylesheet" href="{{ asset('monolith/motion.css') }}">
+<link rel="expect" href="#main" blocking="render">
+<script>
+/* Runs before first paint: enable motion styles and set up page-transition morphs. */
+document.documentElement.classList.add('motion');
+(() => {
+  // The clicked row morphs into the next page's title (and back again on Back).
+  // Rows say which page they stand for with data-vt="/path" (seller rows: data-sid).
+  const path = url => { try { return new URL(url, location.href).pathname; } catch (e) { return null; } };
+  const stand = p => {
+    if (!p) return null;
+    let el = document.querySelector('[data-vt="' + CSS.escape(p) + '"]');
+    const m = !el && p.match(/^\/seller\/([^/]+)$/);
+    if (m) el = document.querySelector('[data-sid="' + CSS.escape(decodeURIComponent(m[1])) + '"]');
+    return el;
+  };
+  const touched = new Set();
+  const reset = () => {
+    touched.forEach(el => { el.style.viewTransitionName = ''; el.style.viewTransitionClass = ''; });
+    touched.clear();
+    const own = document.querySelector('.vt-title'); if (own) own.style.viewTransitionName = 'title';
+  };
+  const claim = el => {          // only one element per page may carry the shared name
+    const own = document.querySelector('.vt-title');
+    if (own && own !== el) own.style.viewTransitionName = 'none';
+    el.style.viewTransitionName = 'title'; el.style.viewTransitionClass = 'morph'; touched.add(el);
+  };
+  addEventListener('pageswap', e => {
+    if (!e.viewTransition || !e.activation) return;
+    reset();
+    const el = stand(path(e.activation.entry.url)); if (el) claim(el);
+  });
+  addEventListener('pagereveal', e => {
+    reset();
+    if (!e.viewTransition || !window.navigation || !navigation.activation) return;
+    const a = navigation.activation, back = a.navigationType === 'traverse' && a.from && a.entry.index < a.from.index;
+    e.viewTransition.types.add(back ? 'back' : 'forward');
+    const el = a.from && stand(path(a.from.url));
+    if (el) { claim(el); e.viewTransition.finished.finally(reset); }
+  });
+})();
+</script>
+<script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/logout"}},{"not":{"href_matches":"/api/*"}},{"not":{"href_matches":"/static/*"}}]},"eagerness":"conservative"}]}</script>
+<script src="{{ asset('monolith/motion.js') }}" defer></script>
+{% block head %}{% endblock %}
+</head>
+<body>
+{% block bar %}
+<header class="wrap bar">
+  <a class="brand" href="{{ url_for('dashboard.index') }}">NexusRisk</a>
+  <nav>
+    <a href="{{ url_for('dashboard.index') }}" {% if request.endpoint == 'dashboard.index' %}aria-current="page"{% endif %}>Overview</a>
+    <a href="{{ url_for('simulator.simulate_event') }}" {% if request.endpoint == 'simulator.simulate_event' %}aria-current="page"{% endif %}>Simulate</a>
+    <a href="{{ url_for('data.index') }}" {% if (request.endpoint or '').startswith('data.') %}aria-current="page"{% endif %}>Records</a>
+  </nav>
+  <span class="sp"></span>
+  <form method="POST" action="{{ url_for('sellers.search') }}" class="cb" data-mode="nav" role="search">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="text" name="seller_id" placeholder="Find seller — name, city or ID" autocomplete="off" aria-label="Find seller">
+  </form>
+  <a class="lo" href="{{ url_for('auth.logout') }}">Log out</a>
+</header>
+{% endblock %}
+<main class="wrap" id="main">
+  {% for m in get_flashed_messages() %}<div class="flash rise">{{ m }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<script>
+// Numbers roll in like an odometer; mono labels decode. Runs before first paint, and the
+// server's text is always the final value (it is put back as plain text when the roll ends).
+(() => {
+  const d = document, reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DIGITS = '0123456789'.repeat(3);
+  const odometer = window.odometer = (el, text, spin) => {
+    text = text == null ? (el.dataset.final || el.textContent.trim()) : String(text);
+    el.dataset.final = text;
+    if (reduce || !/\d/.test(text)) { el.textContent = text; return; }
+    if (el.dataset.rolling) return;
+    el.dataset.rolling = '1';
+    let right = (text.match(/\d/g) || []).length, k = 0, last = null;
+    const frag = d.createDocumentFragment();
+    for (const ch of text) {
+      if (!/\d/.test(ch)) { const c = d.createElement('span'); c.className = 'odo-c'; c.textContent = ch; frag.appendChild(c); continue; }
+      right--;
+      const v = +ch, o = d.createElement('span');
+      // the last digits travel furthest, like a real counter; each strip holds only what it rolls past
+      const from = spin ? v : 0, to = spin ? v + 10 : v + 10 * Math.max(0, 2 - right);
+      o.className = 'odo' + (spin ? ' spin' : '');
+      o.style.cssText = `--f:${from - from};--t:${to - from};--n:${to - from + 1};--k:${k++}`;
+      o.innerHTML = '<span class="odo-ph">' + ch + '</span><span class="odo-s">' + DIGITS.slice(from, to + 1).split('').join('\n') + '</span>';
+      frag.appendChild(o); last = o;
+    }
+    el.setAttribute('aria-label', text);
+    el.textContent = ''; el.appendChild(frag);
+    last.lastChild.addEventListener('animationend', () => { el.textContent = text; el.removeAttribute('aria-label'); delete el.dataset.rolling; }, {once: true});
+  };
+
+  // Letters and digits only: punctuation would open line-break chances and make wrapped labels jump.
+  const UP = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789', LO = 'abcdefghjkmnpqrstuvwxyz0123456789';
+  const glyph = ch => { const set = ch >= 'a' && ch <= 'z' ? LO : UP; return set[(Math.random() * set.length) | 0]; };
+  const decode = (els, delay = 0) => {
+    const jobs = [], t0 = performance.now() + delay;
+    els.forEach((el, i) => {
+      const w = d.createTreeWalker(el, NodeFilter.SHOW_TEXT, {acceptNode: n => n.nodeValue.trim() && !n.parentElement.closest('[data-count],.odo,.roll') ? 1 : 2});
+      const nodes = []; while (w.nextNode()) nodes.push({n: w.currentNode, t: w.currentNode.nodeValue});
+      const total = nodes.reduce((a, o) => a + o.t.length, 0);
+      if (nodes.length && total <= 120) jobs.push({nodes, total, start: t0 + i * 40, dur: Math.min(900, 320 + total * 11)});
+    });
+    if (!jobs.length) return;
+    const step = now => {
+      let live = false;
+      for (const j of jobs) {
+        const p = (now - j.start) / j.dur;
+        if (p < 1) live = true;
+        const shown = Math.max(0, p) * j.total;
+        let seen = 0;
+        for (const o of j.nodes) {
+          let out = '';
+          for (const ch of o.t) out += (seen++ < shown || !/[A-Za-z0-9]/.test(ch)) ? ch : glyph(ch);
+          if (o.n.nodeValue !== out) o.n.nodeValue = out;
+        }
+      }
+      if (live) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  window.decode = decode;
+  if (reduce) return;
+
+  // In view now: start straight away. Further down: start when scrolled to.
+  const inView = el => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; };
+  const counts = [...d.querySelectorAll('[data-count]')], labels = [...d.querySelectorAll('.eyebrow')].filter(e => !e.closest('.cb'));
+  const now = [], later = [];
+  counts.forEach(el => (inView(el) ? now : later).push(el));
+  now.forEach(el => odometer(el));
+  const lnow = labels.filter(inView).slice(0, 18);          // a screenful is plenty
+  decode(lnow, 120);
+  const io = new IntersectionObserver(entries => entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    io.unobserve(e.target);
+    if (e.target.hasAttribute('data-count')) odometer(e.target); else decode([e.target]);
+  }), {rootMargin: '0px 0px -12% 0px'});
+  later.forEach(el => io.observe(el));
+  labels.filter(el => !inView(el)).forEach(el => io.observe(el));
+})();
+
+// Seller combobox (WAI-ARIA "combobox with list autocomplete").
+// data-mode="nav": choosing a seller opens their page. data-mode="fill": fills the hidden seller_id field.
+document.querySelectorAll('.cb').forEach((box,bi)=>{
+  const input=box.querySelector('input[type=text]'), hidden=box.querySelector('input[data-cb-value]');
+  const list=document.createElement('ul'); list.id='cb-list-'+bi; list.setAttribute('role','listbox'); list.setAttribute('aria-label','Sellers'); box.appendChild(list);
+  input.setAttribute('role','combobox'); input.setAttribute('aria-autocomplete','list'); input.setAttribute('aria-controls',list.id); input.setAttribute('aria-expanded','false');
+  let items=[], active=-1, timer=null, seq=0, wasOpen=false;
+  const hlBox=document.createElement('div'); hlBox.className='cb-hl';
+  const moveHl=(instant)=>{const li=active>=0&&list.querySelector(`li[data-i="${active}"]`);if(!li){hlBox.style.opacity=0;return}
+    if(instant)hlBox.style.transition='none';hlBox.style.opacity=1;hlBox.style.transform=`translateY(${li.offsetTop}px)`;hlBox.style.height=li.offsetHeight+'px';
+    if(instant){hlBox.offsetHeight;hlBox.style.transition=''}};
+  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const hl=(s,q)=>{const i=s.toLowerCase().indexOf(q.toLowerCase());return i<0?esc(s):esc(s.slice(0,i))+'<mark>'+esc(s.slice(i,i+q.length))+'</mark>'+esc(s.slice(i+q.length))};
+  const open=o=>{box.setAttribute('aria-expanded',o);input.setAttribute('aria-expanded',o);if(!o){active=-1;input.removeAttribute('aria-activedescendant');wasOpen=false}};
+  const paint=q=>{const fresh=!wasOpen;wasOpen=true;list.classList.toggle('fresh',fresh);list.innerHTML=items.length?items.map((s,i)=>`<li role="option" id="${list.id}-${i}" data-i="${i}" style="--i:${Math.min(i,8)}" aria-selected="${i===active}"><b>${hl(s.name||s.id,q)}</b><span class="${s.category||''}" style="font:400 15px var(--serif);color:var(--c,var(--mute))">${s.score!=null?s.score.toFixed(1)+' · '+s.category:'not scored'}</span><small>${hl(s.id,q)}</small></li>`).join(''):`<li class="empty" role="option" aria-disabled="true">No seller matches “${esc(q)}”</li>`;
+    list.prepend(hlBox);moveHl(true);
+    if(active>=0){input.setAttribute('aria-activedescendant',`${list.id}-${active}`);list.querySelector(`li[data-i="${active}"]`).scrollIntoView({block:'nearest'})}};
+  const select=()=>{list.querySelectorAll('li[data-i]').forEach(x=>x.setAttribute('aria-selected',+x.dataset.i===active));
+    const li=list.querySelector(`li[data-i="${active}"]`);if(li){input.setAttribute('aria-activedescendant',li.id);li.scrollIntoView({block:'nearest'})}moveHl(false)};
+  const choose=i=>{const s=items[i];if(!s)return;
+    if(box.dataset.mode==='nav'){location.href='{{ url_for("sellers.seller", seller_id="__ID__") }}'.replace('__ID__',encodeURIComponent(s.id));return}
+    input.value=`${s.name} — ${s.id}`;if(hidden){hidden.value=s.id;hidden.dispatchEvent(new Event('change'))}open(false)};
+  input.addEventListener('input',()=>{const q=input.value.trim();if(hidden)hidden.value='';clearTimeout(timer);
+    if(q.length<2){open(false);return}
+    timer=setTimeout(async()=>{const my=++seq;const r=await fetch('{{ url_for("dashboard.api_sellers") }}?q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+      if(my!==seq||!r.ok)return;items=await r.json();active=-1;paint(q);open(true)},120)});
+  input.addEventListener('keydown',e=>{const isOpen=box.getAttribute('aria-expanded')==='true';
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){if(!items.length)return;e.preventDefault();active=e.key==='ArrowDown'?(active+1)%items.length:(active<=0?items.length-1:active-1);select();open(true)}
+    else if(e.key==='Enter'){if(isOpen&&active>=0){e.preventDefault();choose(active)}else if(box.dataset.mode!=='nav'){e.preventDefault()}}
+    else if(e.key==='Escape'){if(isOpen)open(false);else{input.value='';if(hidden)hidden.value=''}}});
+  list.addEventListener('mousedown',e=>{const li=e.target.closest('li[data-i]');if(li){e.preventDefault();choose(+li.dataset.i)}});
+  list.addEventListener('pointerover',e=>{const li=e.target.closest('li[data-i]');if(li&&+li.dataset.i!==active){active=+li.dataset.i;moveHl(false);
+    list.querySelectorAll('li[data-i]').forEach(x=>x.setAttribute('aria-selected',+x.dataset.i===active));input.setAttribute('aria-activedescendant',li.id)}});
+  input.addEventListener('blur',()=>setTimeout(()=>open(false),120));
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

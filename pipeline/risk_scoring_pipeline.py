@@ -81,20 +81,27 @@ def run_pipeline(db=None):
     _commit_in_batches(db, ops)
 
     # --- alerts: replace this period's High alerts --------------------------
-    prev_high, stale = set(), []
+    # Alerts logged by hand are never touched; a status someone set (Acknowledged /
+    # Resolved) carries over to the replacement alert.
+    prev_high, stale, status = set(), [], {}
     for doc in db.collection('alert_log').where(
             filter=FieldFilter('ThresholdCrossedCategory', '==', 'High')).stream():
         d = doc.to_dict() or {}
+        if d.get('Manual'):
+            continue
         if d.get('EvaluationPeriod', '') < period:
             prev_high.add(d.get('SellerID'))
         elif d.get('EvaluationPeriod') == period:
             stale.append(('delete', doc.reference, None))
+            if d.get('AlertStatus') not in (None, 'Open'):
+                status[d.get('SellerID')] = d['AlertStatus']
     _commit_in_batches(db, stale)
 
     high = scored[scored['RiskCategory'] == 'High']
     alert_ops = []
     for sid, row in high.iterrows():
         alert = scoring.high_alert(sid, row['sellerName'], records[sid], 2 if sid in prev_high else 1)
+        alert['AlertStatus'] = status.get(sid, alert['AlertStatus'])
         alert_ops.append(('set', db.collection('alert_log').document(), alert))
     print(f"Writing {len(alert_ops)} High-risk alerts...")
     _commit_in_batches(db, alert_ops)
@@ -107,6 +114,8 @@ def run_pipeline(db=None):
         'model_version': version,
         'category_counts': {c: int(counts.get(c, 0)) for c in scoring.CATEGORIES},
         'top_risky': [scoring.top_entry(records[sid]) for sid in top],
+        'score_histogram': scoring.score_histogram(scored['RiskScore']),
+        'sellers_scored': int(len(scored)),
         'last_updated': scoring.now_utc().isoformat(),
     })
 

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ seller_info[2] or seller_id }} · NexusRisk{% endblock %}
+{% macro fv(f, v) -%}
+{%- if v is none -%}<span class="mute">—</span>
+{%- elif f in ('avg_delay_days','max_delay_days') -%}{{ ('%.1f' if f == 'avg_delay_days' else '%.0f')|format(v|abs) }} d {{ 'early' if v < 0 else ('late' if v > 0 else 'on time') }}
+{%- elif f in ('pct_late_deliveries','negative_review_rate') -%}{{ '%.1f'|format(v * 100) }}%
+{%- elif f == 'avg_review_score' -%}{{ '%.2f'|format(v) }} ★
+{%- elif f in ('avg_price','avg_freight','price_volatility') -%}R$ {{ '{:,.2f}'.format(v) }}
+{%- elif f == 'defect_rate' -%}{{ '%.2f'|format(v) }}
+{%- else -%}{{ '{:,}'.format(v|int) }}
+{%- endif -%}
+{%- endmacro %}
+{% block head %}<style>
+.track{position:relative;height:6px;margin:26px 0 10px;display:flex;overflow-x:clip}
+.track i{display:block;height:100%}
+.track .mk{position:absolute;top:-9px;width:2px;height:24px;background:var(--ink);transform:translateX(-1px)}
+.track-lbl{display:flex;justify-content:space-between;font:400 11px var(--mono);color:var(--mute)}
+.drv{display:grid;grid-template-columns:200px 1fr 1fr 130px;align-items:center;gap:0 14px;height:44px;border-bottom:1px solid var(--line)}
+.drv .neg{display:flex;justify-content:flex-end}.drv .neg i,.drv .pos i{display:block;height:8px}
+.drv .neg i{background:var(--ok);transform-origin:right;animation:growx .8s cubic-bezier(.2,.7,.2,1) both}
+.drv .pos i{background:var(--rust);transform-origin:left;animation:growx .8s cubic-bezier(.2,.7,.2,1) both}
+.drv .pos{border-left:1px solid var(--line2)}.drv .neg{border-right:1px solid var(--line2);margin-right:-15px}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:0 40px}
+.kv h4{font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--mute);padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:6px;font-weight:500}
+.kv div{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv div span:first-child{color:var(--mute)}
+.kv div span:last-child{font-family:var(--mono);font-size:13px}
+.recs{display:grid;grid-template-columns:repeat(5,1fr)}
+.recs a{position:relative;display:block;padding:4px 20px 6px;border-left:1px solid var(--line)}
+.recs a:first-child{border-left:0;padding-left:0}
+.recs b{display:block;font:400 44px/1.15 var(--serif);margin-top:6px}
+.recs .arr{position:absolute;right:16px;bottom:14px;color:var(--mute);font:400 14px var(--mono)}
+@media(max-width:900px){.kv{grid-template-columns:1fr 1fr}.drv{grid-template-columns:120px 1fr 1fr 90px}.recs{grid-template-columns:1fr 1fr;gap:18px}.recs a{border:0;padding-left:0}}
+</style>{% endblock %}
+{% block content %}
+{% set cat = live_ml_category or (history[0][2] if history else none) %}
+<section class="head">
+  <div class="rise">
+    <div class="eyebrow">{{ seller_info[0] }}{% if seller_info[1] %}, {{ seller_info[1] }}{% endif %} · <span class="mono" style="letter-spacing:0;text-transform:none">{{ seller_id }}</span></div>
+    <h1 class="display vt-title" style="margin-top:14px;view-transition-name:title;view-transition-class:morph">{{ seller_info[2] or seller_id }}</h1>
+    <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
+      <a class="btn ghost" href="{{ url_for('data.edit', table='sellers', doc_id=seller_id) }}">Edit</a>
+      <a class="btn ghost" href="{{ url_for('data.create', table='purchase_orders', seller=seller_id) }}">New order</a>
+      <a class="btn ghost" href="{{ url_for('simulator.simulate_event') }}?seller={{ seller_id }}">Simulate event</a>
+      <a class="btn danger" href="{{ url_for('data.remove', table='sellers', doc_id=seller_id) }}">Delete</a>
+    </div>
+  </div>
+  <div class="rise {{ cat or '' }}" style="--i:1;min-width:380px">
+    <div class="eyebrow live">Risk score</div>
+    {% if live_ml_score is not none %}
+      <div style="display:flex;align-items:baseline;gap:18px">
+        <div class="serif num cat" style="font-size:112px;line-height:1" data-count="{{ live_ml_score }}" data-dec="1">{{ '%.1f'|format(live_ml_score) }}</div>
+        <div class="eyebrow cat">{{ live_ml_category }}</div>
+      </div>
+      <div class="track" aria-hidden="true">
+        <i style="width:{{ bands.Medium }}%;background:rgba(201,187,160,.25)"></i><i style="width:{{ bands.High - bands.Medium }}%;background:rgba(168,135,90,.45)"></i><i style="flex:1;background:rgba(194,87,60,.5)"></i>
+        <span class="mkw" style="--s:{{ live_ml_score }}"><span class="mk"></span></span>
+      </div>
+      <div class="track-lbl" style="position:relative;height:14px"><span style="position:absolute;left:0">0</span><span style="position:absolute;left:{{ bands.Medium }}%;transform:translateX(-50%)">{{ bands.Medium|int }}</span><span style="position:absolute;left:{{ bands.High }}%;transform:translateX(-50%)">{{ bands.High|int }}</span><span style="position:absolute;right:0">100</span></div>
+    {% elif features.total_orders %}
+      <p class="mute" style="margin-top:12px">Model not trained yet. Run the retraining steps.</p>
+    {% else %}
+      <p class="mute" style="margin-top:12px">No orders yet, so there is nothing to score.</p>
+    {% endif %}
+  </div>
+</section>
+
+
+
+<section class="sec">
+  <div class="eyebrow"><span>Seller record</span><span>all history up to today</span></div>
+  <div class="kv">
+    <section><h4>Delivery</h4>
+      <div><span>Avg vs promised date</span><span>{{ fv('avg_delay_days', features.avg_delay_days) }}</span></div>
+      <div><span>Worst delivery</span><span>{{ fv('max_delay_days', features.max_delay_days) }}</span></div>
+      <div><span>Late deliveries</span><span>{{ fv('pct_late_deliveries', features.pct_late_deliveries) }}</span></div></section>
+    <section><h4>Reviews</h4>
+      <div><span>Average</span><span>{{ fv('avg_review_score', features.avg_review_score) }}</span></div>
+      <div><span>3 stars or less</span><span>{{ fv('negative_review_rate', features.negative_review_rate) }}</span></div>
+      <div><span>Reviews</span><span>{{ fv('n_reviews', features.n_reviews) }}</span></div></section>
+    <section><h4>Volume</h4>
+      <div><span>Orders</span><span>{{ fv('total_orders', features.total_orders) }}</span></div>
+      <div><span>Items</span><span>{{ fv('total_items', features.total_items) }}</span></div>
+      <div><span>Products</span><span>{{ fv('unique_products', features.unique_products) }}</span></div></section>
+    <section><h4>Price &amp; defects</h4>
+      <div><span>Avg price</span><span>{{ fv('avg_price', features.avg_price) }}</span></div>
+      <div><span>Avg freight</span><span>{{ fv('avg_freight', features.avg_freight) }}</span></div>
+      <div><span>Price spread</span><span>{{ fv('price_volatility', features.price_volatility) }}</span></div>
+      <div><span>Defect severity / order</span><span>{{ fv('defect_rate', features.defect_rate) }}</span></div></section>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="eyebrow"><span>Records</span><span>browse, edit or delete this seller's rows</span></div>
+  <div class="recs">
+    <a href="{{ url_for('data.rows', table='purchase_orders', seller=seller_id) }}"><span class="eyebrow">Orders</span><b class="num" data-count="{{ (features.total_orders or 0)|int }}">{{ '{:,}'.format((features.total_orders or 0)|int) }}</b><span class="arr">→</span></a>
+    <a href="{{ url_for('data.rows', table='po_lines', f='sellerId', v=seller_id) }}"><span class="eyebrow">Order lines</span><b class="num" data-count="{{ (features.total_items or 0)|int }}">{{ '{:,}'.format((features.total_items or 0)|int) }}</b><span class="arr">→</span></a>
+    <a href="{{ url_for('data.rows', table='risk_scores', f='SellerID', v=seller_id) }}"><span class="eyebrow">Risk scores</span><b class="num" data-count="{{ history|length }}">{{ history|length }}</b><span class="arr">→</span></a>
+    <a href="{{ url_for('data.rows', table='alert_log', f='SellerID', v=seller_id) }}"><span class="eyebrow">Open alerts</span><b class="num" data-count="{{ alerts|length }}">{{ alerts|length }}</b><span class="arr">→</span></a>
+    <a href="{{ url_for('data.rows', table='price_history', f='sellerId', v=seller_id) }}"><span class="eyebrow">Price history</span><b class="serif">view</b><span class="arr">→</span></a>
+  </div>
+</section>
+
+<section class="sec grid2">
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Defects found in reviews (NLP)</div>
+    {% if defects %}
+    <table class="rows"><thead><tr><th>Type</th><th class="r">Reviews</th><th class="r">Severity 0–5</th></tr></thead><tbody>
+    {% for d in defects %}<tr><td>{{ d[0] }}</td><td class="r mono">{{ d[1] }}</td><td class="r mono" style="color:{{ 'var(--rust)' if d[2] >= 4 else ('var(--ochre)' if d[2] >= 2.5 else 'var(--mute)') }}">{{ '%.1f'|format(d[2]) }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="mute" style="margin-top:16px">No written complaints classified for this seller.</p>{% endif %}
+  </div>
+  <div>
+    <div class="eyebrow" style="margin-bottom:8px">Score history</div>
+    {% if history %}
+    {% if history|length > 1 %}
+      {% set hs = history|reverse|list %}
+      <svg class="spark" viewBox="0 0 400 120" style="width:100%;height:120px;margin:12px 0 6px" aria-label="Risk score by period">
+        <line x1="0" x2="400" y1="{{ 110 - bands.High }}" y2="{{ 110 - bands.High }}" stroke="var(--line2)" stroke-dasharray="3 5"/>
+        <polyline pathLength="1" fill="none" stroke="var(--rust)" stroke-width="1.5" points="{% for h in hs %}{{ (loop.index0 / (hs|length - 1) * 380 + 10)|round(1) }},{{ (110 - (h[1] or 0))|round(1) }} {% endfor %}"/>
+        {% for h in hs %}<circle style="--i:{{ loop.index0 }}" cx="{{ (loop.index0 / (hs|length - 1) * 380 + 10)|round(1) }}" cy="{{ (110 - (h[1] or 0))|round(1) }}" r="3" fill="var(--bg)" stroke="var(--rust)"/>{% endfor %}
+      </svg>
+    {% endif %}
+    <table class="rows"><thead><tr><th>Period</th><th>Band</th><th class="hide-sm">Trend</th><th class="r">Score</th></tr></thead><tbody>
+    {% for h in history %}<tr class="{{ h[2] }}"><td class="mono">{{ h[0] }}</td><td class="cat">{{ h[2] }}</td><td class="trend {{ h[3] }} hide-sm">{{ h[3] }}</td><td class="r mono cat">{{ '%.1f'|format(h[1] or 0) }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="mute" style="margin-top:16px">Not scored yet. The next pipeline run will add it.</p>{% endif %}
+  </div>
+</section>
+
+{% if alerts %}
+<section class="sec">
+  <div class="eyebrow" style="margin-bottom:8px">Open alerts</div>
+  <table class="rows"><tbody>
+  {% for a in alerts %}<tr><td class="mono" style="width:140px">{{ a[0].strftime('%d %b %Y') if a[0] else '' }}</td><td>{% if a|length > 3 and a[3] is not none %}Crossed into High with {{ '%.1f'|format(a[3]) }}{% if a[4] %} in {{ a[4] }}{% endif %}{% else %}{{ a[1] }}{% endif %}</td><td class="r mono" style="color:var(--rust)">{{ 'Repeat' if a[2] == 2 else 'First' }} alert</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endif %}
+{% endblock %}

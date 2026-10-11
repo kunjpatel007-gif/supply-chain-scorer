@@ -47,8 +47,15 @@ def _train_tiny_model():
     m.fit(X[FEATURE_COLS], y)
     m.save_model(os.path.join(_MODEL_DIR, 'vendor_risk_model.json'))
     with open(os.path.join(_MODEL_DIR, 'model_card.json'), 'w') as f:
-        json.dump({'model_version': 'test-1', 'features': FEATURE_COLS,
-                   'bands': {'Medium': 40.0, 'High': 60.0}}, f)
+        json.dump({'model_version': 'test-1', 'features': FEATURE_COLS, 'trained_at': '2026-10-10T00:00:00',
+                   'question': 'Test model', 'bands': {'Medium': 40.0, 'High': 60.0},
+                   'train_rows': 480, 'test_rows': 120, 'cutoffs': ['2017-05-01', '2018-03-01'],
+                   'params': {'max_depth': 3},
+                   'test_metrics': {'auc': 0.7, 'pr_auc': 0.4, 'positive_rate': 0.25,
+                                    'baseline_auc_negative_review_rate': 0.6, 'baseline_auc_pct_late': 0.55},
+                   'test_bands': {'Low': {'sellers': 50, 'landed_in_worst_25pct': 0.1, 'avg_future_bad_rate': 0.1},
+                                  'High': {'sellers': 20, 'landed_in_worst_25pct': 0.5, 'avg_future_bad_rate': 0.3}},
+                   'feature_impact': {c: round(1 / len(FEATURE_COLS), 4) for c in FEATURE_COLS}}, f)
 
 
 _train_tiny_model()
@@ -67,6 +74,8 @@ def seed(db):
               {'defectTypeId': 13, 'category': 'Logistics Issue', 'severity': 3.0},
               {'defectTypeId': 16, 'category': 'Critical Failure', 'severity': 5.0}]:
         db.collection('defect_types').document(d['defectTypeId']).set(d)
+    for i in range(3):
+        db.collection('products').document(f'p{i}').set({'productId': f'p{i}', 'productCategoryName': 'housewares'})
     for sid, n, delay, review, dtype, sev in ((GOOD, 20, -5, 5, None, None),
                                                (BAD, 12, 9, 1, 16.0, 5.0)):
         for i in range(n):
@@ -87,13 +96,16 @@ def db():
     seed(FAKE_DB)
     features._DEFECT_TYPES = None
     dashboard._SELLERS = None
+    dashboard._SCORES.update(period=None, at=0.0, data={})
+    import backend.crud as crud
+    crud._COUNTS.update(at=0.0, data={})
     return FAKE_DB
 
 
 @pytest.fixture
 def app(db):
     from flask_webapp.app import create_app
-    return create_app({'TESTING': True, 'WTF_CSRF_ENABLED': False})
+    return create_app({'TESTING': True, 'WTF_CSRF_ENABLED': False, 'UI_THEME': 'classic'})   # explicit: ignores your UI_THEME setting
 
 
 @pytest.fixture
@@ -106,3 +118,19 @@ def logged_in(client):
     r = client.post('/login', data={'password': os.environ['ADMIN_PASSWORD']})
     assert r.status_code == 302
     return client
+
+
+@pytest.fixture
+def mono(db):
+    """Logged-in client on the Monolith theme (CSRF on, like production)."""
+    import re
+    from flask_webapp.app import create_app
+    c = create_app({'TESTING': True, 'UI_THEME': 'monolith'}).test_client()
+    page = c.get('/login').get_data(as_text=True)
+    token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
+    r = c.post('/login', data={'password': os.environ['ADMIN_PASSWORD'], 'csrf_token': token})
+    assert r.status_code == 302
+    # Login resets the session (and its CSRF secret), so take a fresh token like a browser would.
+    page = c.get('/simulate').get_data(as_text=True)
+    c.csrf = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
+    return c

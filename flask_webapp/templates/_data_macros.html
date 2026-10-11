@@ -1,0 +1,62 @@
+{# Classic-theme pieces for the Records (CRUD) pages. #}
+{% macro title(t, id, r) -%}
+{%- if t.name == 'purchase_orders' -%}Order {{ id|short(8) }}
+{%- elif t.name == 'po_lines' -%}Line {{ r.lineNo if r.lineNo is not none else '?' }} of order {{ (r.poId or '')|short(8) }}
+{%- elif t.name == 'deliveries' -%}Delivery {{ r.deliveryId if r.deliveryId is not none else id|short(8) }}
+{%- elif t.name == 'quality_inspections' -%}{{ r.reviewScore|int if r.reviewScore is not none else '?' }}-star review
+{%- elif t.name == 'defect_types' -%}{{ r.category or id }}
+{%- elif t.name == 'products' -%}Product {{ id|short(8) }}
+{%- elif t.name == 'price_history' -%}Price record {{ r.priceRecordId if r.priceRecordId is not none else id|short(8) }}
+{%- elif t.name == 'risk_scores' -%}{{ names.sellers.get(r.SellerID) or r.SellerID }} · {{ r.EvaluationPeriod }}
+{%- elif t.name == 'alert_log' -%}Alert · {{ names.sellers.get(r.SellerID) or r.SellerID }}
+{%- elif t.name == 'sellers' -%}{{ r.sellerName or id }}
+{%- else -%}{{ id }}{%- endif -%}
+{%- endmacro %}
+
+{% macro val(f, v) -%}
+{%- if v is none or v != v -%}<span class="text-neutral">—</span>
+{%- elif f.ref == 'sellers' -%}<a href="{{ url_for('sellers.seller', seller_id=v) }}" style="text-decoration:underline">{{ names.sellers.get(v) or v|short }}</a>
+{%- elif f.ref == 'defect_types' -%}<a href="{{ url_for('data.record', table='defect_types', doc_id=v|int) }}" style="text-decoration:underline">{{ names.defect_types.get(v|int) or v }}</a>
+{%- elif f.ref -%}<a class="mono" href="{{ url_for('data.record', table=f.ref, doc_id=v) }}" style="text-decoration:underline">{{ v|short }}</a>
+{%- elif f.name in ('RiskCategory', 'ThresholdCrossedCategory') -%}<span class="badge {{ v }}">{{ v }}</span>
+{%- elif f.kind == 'str' and (v|string)|length > 24 and ' ' not in v|string -%}<span class="mono" title="{{ v }}">{{ v|short }}</span>
+{%- else -%}{{ v|cell(f) }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro input(f, values, errors, prefix='') -%}
+{%- set name = prefix ~ f.name -%}
+{%- set v = (values.get(name) if values else none) -%}{%- set v = '' if v is none else v -%}
+{%- set err = errors.get(name) if errors else none -%}
+<div class="grp">
+  <label for="f-{{ name }}">{{ f.label }}{% if f.required and not prefix %} *{% endif %}</label>
+  {%- if f.ref == 'defect_types' %}
+  <select id="f-{{ name }}" name="{{ name }}"><option value="">None</option>{% for id, cat in names.defect_types|dictsort %}<option value="{{ id }}"{{ ' selected' if v|string == id|string }}>{{ cat }}</option>{% endfor %}</select>
+  {%- elif f.kind == 'choice' %}
+  <select id="f-{{ name }}" name="{{ name }}"{{ ' required' if f.required }}>{% for c in f.choices %}<option{{ ' selected' if v == c }}>{{ c }}</option>{% endfor %}</select>
+  {%- elif f.kind == 'stars' %}
+  <select id="f-{{ name }}" name="{{ name }}"{{ ' required' if f.required }}><option value="">—</option>{% for n in range(5, 0, -1) %}<option value="{{ n }}"{{ ' selected' if v|string == n|string }}>{{ '★' * n }} ({{ n }})</option>{% endfor %}</select>
+  {%- elif f.kind == 'text' %}
+  <textarea id="f-{{ name }}" name="{{ name }}" maxlength="{{ f.maxlen }}"{{ ' required' if f.required }}>{{ v }}</textarea>
+  {%- elif f.kind == 'datetime' %}
+  <input id="f-{{ name }}" type="datetime-local" name="{{ name }}" value="{{ v }}"{{ ' required' if f.required }}>
+  {%- elif f.kind in ('int', 'float') %}
+  <input id="f-{{ name }}" type="number" name="{{ name }}" value="{{ v }}" step="{{ '1' if f.kind == 'int' else 'any' }}"{{ ' required' if f.required }}>
+  {%- else %}
+  <input id="f-{{ name }}" type="text" name="{{ name }}" value="{{ v }}" maxlength="{{ f.maxlen }}"{{ ' required' if f.required }}{% if f.ref %} placeholder="{{ TABLES[f.ref].one|capitalize }} ID"{% endif %}>
+  {%- endif %}
+  {%- if err %}<div class="text-coral" style="font-size:.8rem;margin-top:.35rem">{{ err }}</div>{% elif f.hint %}<div class="mono" style="margin-top:.35rem">{{ f.hint }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro table(t, rows) -%}
+<div class="list">
+{% for id, r in rows %}
+  <a class="glass row rise" style="--i:{{ [loop.index0, 10]|min }}" href="{{ url_for('sellers.seller', seller_id=id) if t.name == 'sellers' else url_for('data.record', table=t.name, doc_id=id) }}">
+    <div><b>{{ title(t, id, r) }}</b>
+      <div class="meta">{% for c in t.columns[1:5] %}<span>{{ c.label }}: {{ r.get(c.name)|cell(c) }}</span>{% endfor %}</div></div>
+    <div class="end"><svg class="i go" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+  </a>
+{% else %}<div class="empty"><h3>No rows</h3></div>{% endfor %}
+</div>
+{%- endmacro %}

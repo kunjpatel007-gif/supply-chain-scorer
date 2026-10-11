@@ -40,6 +40,16 @@ PARAMS = dict(
     objective='binary:logistic', eval_metric='logloss',
     tree_method='hist', random_state=42,
 )
+# Inputs the model uses. Price spread is computed for the seller page but left out of the model:
+# it has no steady link to risk, and it made a normal order at a seller's usual price move the score.
+MODEL_FEATURES = [f for f in FEATURE_COLS if f != 'price_volatility']
+# Common sense the model must respect (checked by an audit of 400 real sellers):
+#   worse delivery, worse reviews, more defects -> risk can only go up;
+#   a longer track record (more orders / items / reviews) -> risk can only go down.
+MONOTONE = {'avg_delay_days': 1, 'max_delay_days': 1, 'pct_late_deliveries': 1,
+            'avg_review_score': -1, 'negative_review_rate': 1, 'defect_rate': 1,
+            'total_orders': -1, 'total_items': -1, 'n_reviews': -1}
+PARAMS['monotone_constraints'] = '(' + ','.join(str(MONOTONE.get(f, 0)) for f in MODEL_FEATURES) + ')'
 
 
 def band(score):
@@ -56,8 +66,8 @@ def main():
 
     # 1) Evaluate on the later, unseen period
     model = xgb.XGBClassifier(**PARAMS)
-    model.fit(train[FEATURE_COLS], train['y'])
-    p = model.predict_proba(test[FEATURE_COLS])[:, 1]
+    model.fit(train[MODEL_FEATURES], train['y'])
+    p = model.predict_proba(test[MODEL_FEATURES])[:, 1]
     auc = roc_auc_score(test['y'], p)
     pr_auc = average_precision_score(test['y'], p)
     base_neg = roc_auc_score(test['y'], test['negative_review_rate'].fillna(0))
@@ -77,7 +87,7 @@ def main():
     print("\nBands on the test period:")
     print(table.round(3).to_string())
 
-    imp = pd.Series(model.feature_importances_, FEATURE_COLS).sort_values(ascending=False)
+    imp = pd.Series(model.feature_importances_, MODEL_FEATURES).sort_values(ascending=False)
     print("\nTop features:", ', '.join(imp.index[:5]))
 
     ok = auc >= MIN_TEST_AUC
@@ -87,15 +97,22 @@ def main():
 
     # 2) Refit on every window (train + test) for the model the app will use
     final = xgb.XGBClassifier(**PARAMS)
-    final.fit(df[FEATURE_COLS], df['y'])
+    final.fit(df[MODEL_FEATURES], df['y'])
     final.save_model(MODEL_PATH)
+
+    # Average absolute push of each feature on the score (exact SHAP values from XGBoost),
+    # shown on the Model page. Shares sum to 100%.
+    contrib = final.get_booster().predict(
+        xgb.DMatrix(df[MODEL_FEATURES], feature_names=MODEL_FEATURES), pred_contribs=True)[:, :-1]
+    mean_abs = np.abs(contrib).mean(axis=0)
+    impact = {f: round(float(v / mean_abs.sum()), 4) for f, v in zip(MODEL_FEATURES, mean_abs)}
 
     card = {
         'model_version': datetime.datetime.now().strftime('%Y%m%d-%H%M%S'),
         'trained_at': datetime.datetime.now().isoformat(timespec='seconds'),
-        'question': 'Probability the seller is in the worst 25% of sellers over the next 4 months '
-                    '(an order is bad if late or reviewed <= 2 stars).',
-        'features': FEATURE_COLS,
+        'question': 'Risk that a seller lands in the worst 25% over the next 4 months, '
+                    'where an order is bad if late or reviewed \u2264 2 stars',
+        'features': MODEL_FEATURES,
         'bands': BANDS,
         'params': PARAMS,
         'train_rows': int(len(train)),
@@ -110,6 +127,7 @@ def main():
         },
         'test_bands': {b: {k: round(float(v), 4) for k, v in row.items()} for b, row in table.iterrows()},
         'top_features': imp.index[:5].tolist(),
+        'feature_impact': dict(sorted(impact.items(), key=lambda kv: -kv[1])),
     }
     with open(CARD_PATH, 'w', encoding='utf-8') as f:
         json.dump(card, f, indent=2)

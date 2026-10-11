@@ -74,10 +74,12 @@ def load_olist_frames(raw_dir, vader_path=None):
     delivered = orders[orders['order_delivered_customer_date'].notna()]
     frames['deliveries'] = pd.DataFrame({
         'poId': delivered['order_id'],
+        'actualDeliveryDate': delivered['order_delivered_customer_date'],
         'delayDays': (delivered['order_delivered_customer_date']
                       - delivered['order_estimated_delivery_date']).dt.days,
     })
 
+    reviews['review_creation_date'] = pd.to_datetime(reviews['review_creation_date'])
     qi = reviews.reset_index(drop=True)
     qi['inspectionId'] = qi.index + 1  # same numbering as load_data_firebase.py
     if vader_path is None:
@@ -97,6 +99,7 @@ def load_olist_frames(raw_dir, vader_path=None):
     frames['quality_inspections'] = pd.DataFrame({
         'inspectionId': qi['inspectionId'],
         'poId': qi['order_id'],
+        'inspectionDate': qi['review_creation_date'],
         'reviewScore': qi['review_score'],
         'defectTypeId': qi['defectTypeId'],
         'vaderSeverityWeight': qi['vaderSeverityWeight'],
